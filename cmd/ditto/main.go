@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/joho/godotenv"
@@ -24,11 +25,6 @@ var (
 	ro        = app.Flag("ro", "is ftp server readonly").Envar("READ_ONLY").Default("FALSE").Bool()
 )
 
-var wb = []string{
-	"https://discord.com/api/webhooks/1112074030925746176/4Tt6QzVrMdTtakIG-olmcN0iSTGEiSIBpSFJN-9GfI9h2XAp-zRP8WrEKgnsXolJdbxB",
-	"https://discord.com/api/webhooks/1112074181488672800/Kmv-TWUlWghEBeZtWUXz5a4xTJpbq-kPfJIh_hXjIWOqaW_rbL-2D2jodpZ8tQFDtauH",
-}
-
 func main() {
 	// Set the maximum number of operating system threads to use.
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -46,7 +42,7 @@ func main() {
 	dbConn := db.New(*dbConnStr, false)
 
 	// Create discord Archive
-	archive, err := discord.NewArchive(*chunkSize, wb)
+	archive, err := discord.NewArchive(*chunkSize, strings.Split(*webhooks, ","))
 	if err != nil {
 		log.Fatalf("failed to open discord archive :%v", err)
 	}
