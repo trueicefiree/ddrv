@@ -1,0 +1,17 @@
+version: '3.8'
+
+name: "ditto"
+services:
+  postgres:
+    container_name: dittopg
+    image: postgres:alpine
+    volumes:
+      - dittopg:/var/lib/postgresql/data
+    ports:
+      - "5430:5432"
+    environment:
+      POSTGRES_USER: ditto
+      POSTGRES_DB: ditto
+      POSTGRES_PASSWORD: ditto
+volumes:
+  dittopg:
