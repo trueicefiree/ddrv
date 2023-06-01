@@ -18,8 +18,9 @@ var (
 func New(fs afero.Fs, addr string) *ftpserver.FtpServer {
     d := &Driver{
         Settings: &ftpserver.Settings{
-            DefaultTransferType: ftpserver.TransferTypeBinary,
-            ListenAddr:          addr,
+            DefaultTransferType:      ftpserver.TransferTypeBinary,
+            ListenAddr:               addr,
+            PassiveTransferPortRange: &ftpserver.PortRange{Start: 2526, End: 3535},
         },
         Fs: fs,
     }
