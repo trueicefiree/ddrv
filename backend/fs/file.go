@@ -18,7 +18,7 @@ type File struct {
     atime time.Time
     mtime time.Time
 
-    fd           int
+    flag         int
     off          int64
     data         []Node
     readDirCount int64
@@ -42,6 +42,9 @@ func (f *File) WriteAt(_ []byte, _ int64) (int, error) { return 0, ErrNotSupport
 
 func (f *File) Name() string {
     _, name := filepath.Split(f.name)
+    if name == "" {
+        return "/"
+    }
     return name
 }
 
@@ -137,16 +140,17 @@ func (f *File) Write(p []byte) (int, error) {
     if f.IsDir() {
         return 0, ErrIsDir
     }
-    if f.fd == os.O_RDONLY {
-        return 0, ErrReadOnly
+
+    if !CheckFlag(os.O_WRONLY, f.flag) {
+        return 0, ErrNotSupported
     }
-    // If fd is not O_APPEND delete old nodes
-    if f.fd != os.O_APPEND {
-        if _, err := f.db.Exec("DELETE FROM node WHERE file=$1", f.id); err != nil {
-            return 0, err
-        }
-    }
+
     if f.streamWrite == nil {
+        if CheckFlag(os.O_APPEND, f.flag) {
+            if _, err := f.db.Exec("DELETE FROM node WHERE file=$1", f.id); err != nil {
+                return 0, err
+            }
+        }
         f.streamWrite = f.disc.NewWriter(func(chunk *discord.Chunk) {
             f.chunks = append(f.chunks, chunk)
         })
@@ -160,7 +164,8 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
     if f.IsDir() {
         return 0, ErrIsDir
     }
-    if f.fd != os.O_RDONLY {
+
+    if !CheckFlag(os.O_RDONLY, f.flag) {
         return 0, ErrNotSupported
     }
 

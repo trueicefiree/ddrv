@@ -57,6 +57,7 @@ func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
         }
         return err
     }
+
     if !dir {
         return PathError("mkdir", name, ErrIsNotDir)
     }
@@ -97,7 +98,7 @@ func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
-    file := &File{fd: os.O_RDONLY, db: fs.db, disc: fs.disc}
+    file := &File{flag: os.O_RDONLY, db: fs.db, disc: fs.disc}
     err := fs.db.QueryRow("SELECT id, name, dir, size, atime, mtime FROM stat($1)", name).
         Scan(&file.id, &file.name, &file.dir, &file.size, &file.atime, &file.mtime)
     if err != nil {
@@ -125,14 +126,14 @@ func (fs *Fs) Open(name string) (afero.File, error) {
 
 // OpenFile supported flags, O_WRONLY, O_CREATE, O_RDONLY
 func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error) {
-    file := &File{fd: flag, db: fs.db, disc: fs.disc}
+    file := &File{flag: flag, db: fs.db, disc: fs.disc}
 
-    // Only allowed WRONLY and RDONLY at the moment
-    if flag != os.O_WRONLY && flag != os.O_RDONLY {
+    if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC) {
         return nil, PathError("open", name, ErrNotSupported)
     }
+
     // If file system is read only, only allow readonly flag
-    if fs.ro && flag != os.O_RDONLY {
+    if fs.ro && CheckFlag(flag, os.O_RDONLY) {
         return nil, PathError("open", name, ErrReadOnly)
     }
 
@@ -141,7 +142,7 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
 
     if err != nil && err == sql.ErrNoRows {
         // If record not found just create new file and return
-        if flag&os.O_CREATE != 0 {
+        if CheckFlag(os.O_CREATE, flag) {
             return fs.Create(name)
         }
         return nil, PathError("open", name, ErrNotExist)
@@ -149,7 +150,13 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
         return nil, err
     }
 
-    if !file.dir {
+    if CheckFlag(os.O_TRUNC, flag) {
+        if _, err := fs.db.Exec("DELETE FROM node WHERE file=$1", file.id); err != nil {
+            return nil, err
+        }
+    }
+
+    if !file.dir && flag&os.O_TRUNC == 0 {
         rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
         if err != nil {
             return nil, err
@@ -217,4 +224,8 @@ func (fs *Fs) Stat(name string) (os.FileInfo, error) {
 
 func PathError(op string, path string, err error) *os.PathError {
     return &os.PathError{Op: op, Path: path, Err: err}
+}
+
+func CheckFlag(flag int, allowedFlags int) bool {
+    return flag == (flag & allowedFlags)
 }
