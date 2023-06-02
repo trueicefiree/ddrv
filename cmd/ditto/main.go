@@ -48,7 +48,7 @@ func main() {
     }
     // Create DFS object
     dfs := fs.New(dbConn, archive, *ro)
-    
+
     // Create and start ftp server
     ftpServer := ftp.New(dfs, *ftpaddr)
     log.Printf("starting FTP Server on : %s", *ftpaddr)

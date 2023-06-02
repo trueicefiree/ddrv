@@ -117,6 +117,9 @@ func (f *File) Read(p []byte) (n int, err error) {
 }
 
 func (f *File) ReadAt(p []byte, off int64) (n int, err error) {
+    if f.IsDir() {
+        return 0, ErrIsDir
+    }
     if _, err := f.Seek(off, io.SeekCurrent); err != nil {
         return 0, err
     }
@@ -124,6 +127,9 @@ func (f *File) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *File) WriteString(s string) (ret int, err error) {
+    if f.IsDir() {
+        return 0, ErrIsDir
+    }
     return f.Write([]byte(s))
 }
 
@@ -131,8 +137,14 @@ func (f *File) Write(p []byte) (int, error) {
     if f.IsDir() {
         return 0, ErrIsDir
     }
-    if f.fd&os.O_RDONLY != 0 {
+    if f.fd == os.O_RDONLY {
         return 0, ErrReadOnly
+    }
+    // If fd is not O_APPEND delete old nodes
+    if f.fd != os.O_APPEND {
+        if _, err := f.db.Exec("DELETE FROM node WHERE file=$1", f.id); err != nil {
+            return 0, err
+        }
     }
     if f.streamWrite == nil {
         f.streamWrite = f.disc.NewWriter(func(chunk *discord.Chunk) {
@@ -145,6 +157,9 @@ func (f *File) Write(p []byte) (int, error) {
 }
 
 func (f *File) Seek(offset int64, whence int) (int64, error) {
+    if f.IsDir() {
+        return 0, ErrIsDir
+    }
     if f.fd != os.O_RDONLY {
         return 0, ErrNotSupported
     }

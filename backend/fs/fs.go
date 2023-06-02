@@ -133,7 +133,7 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
         return nil, PathError("open", name, ErrNotSupported)
     }
     // If file system is read only, only allow readonly flag
-    if fs.ro && flag&os.O_RDONLY == 0 {
+    if fs.ro && flag != os.O_RDONLY {
         return nil, PathError("open", name, ErrReadOnly)
     }
 
@@ -150,22 +150,21 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
         return nil, err
     }
 
-    if file.dir {
-        return nil, PathError("open", name, ErrIsDir)
-    }
-    rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
-    file.data = make([]Node, 0)
-    for rows.Next() {
-        node := new(Node)
-        err := rows.Scan(&node.id, &node.url, &node.size, &node.iv, &node.mtime)
+    if !file.dir {
+        rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
         if err != nil {
             return nil, err
         }
-        file.data = append(file.data, *node)
+        defer rows.Close()
+        file.data = make([]Node, 0)
+        for rows.Next() {
+            node := new(Node)
+            err := rows.Scan(&node.id, &node.url, &node.size, &node.iv, &node.mtime)
+            if err != nil {
+                return nil, err
+            }
+            file.data = append(file.data, *node)
+        }
     }
 
     return file, nil
