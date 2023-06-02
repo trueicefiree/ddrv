@@ -57,7 +57,6 @@ func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
         }
         return err
     }
-
     if !dir {
         return PathError("mkdir", name, ErrIsNotDir)
     }
@@ -128,8 +127,8 @@ func (fs *Fs) Open(name string) (afero.File, error) {
 func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error) {
     file := &File{fd: flag, db: fs.db, disc: fs.disc}
 
-    // Reading and writing not supported at once, since we're not making entries in database until file is closed
-    if flag&(os.O_RDWR|os.O_APPEND) != 0 {
+    // Only allowed WRONLY and RDONLY at the moment
+    if flag != os.O_WRONLY && flag != os.O_RDONLY {
         return nil, PathError("open", name, ErrNotSupported)
     }
     // If file system is read only, only allow readonly flag
