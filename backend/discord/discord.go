@@ -55,12 +55,12 @@ func New(chunkSize int, webhooks []string) (*Discord, error) {
 }
 
 // NewWriter creates a new Writer instance with the chunk size of the Discord instance.
-func (d *Discord) NewWriter() *Writer {
-    return NewWriter(d.chunkSize, d)
+func (d *Discord) NewWriter(onChunk func(chunk Chunk)) io.WriteCloser {
+    return NewWriter(onChunk, d.chunkSize, d)
 }
 
 // NewReader creates a new Reader instance with the provided chunks and position, and the Discord instance as the Archive.
-func (d *Discord) NewReader(chunks []Chunk, pos int64) (*Reader, error) {
+func (d *Discord) NewReader(chunks []Chunk, pos int64) (io.ReadCloser, error) {
     return NewReader(chunks, pos, d)
 }
 

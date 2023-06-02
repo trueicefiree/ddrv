@@ -21,13 +21,13 @@ type File struct {
     fd           int
     off          int64
     data         []Node
-    content      []byte
     readDirCount int64
 
     db          *sql.DB
     disc        *discord.Discord
-    streamWrite *discord.Writer
-    streamRead  *discord.Reader
+    chunks      []discord.Chunk
+    streamWrite io.WriteCloser
+    streamRead  io.ReadCloser
 }
 
 func (f *File) Size() int64                { return f.size }
@@ -135,7 +135,9 @@ func (f *File) Write(p []byte) (int, error) {
         return 0, ErrReadOnly
     }
     if f.streamWrite == nil {
-        f.streamWrite = f.disc.NewWriter()
+        f.streamWrite = f.disc.NewWriter(func(chunk discord.Chunk) {
+            f.chunks = append(f.chunks, chunk)
+        })
     }
     n, err := f.streamWrite.Write(p)
 
@@ -143,8 +145,7 @@ func (f *File) Write(p []byte) (int, error) {
 }
 
 func (f *File) Seek(offset int64, whence int) (int64, error) {
-    // Seek supported only in readOnly mode
-    if f.fd&os.O_RDONLY == 0 {
+    if f.fd != os.O_RDONLY {
         return 0, ErrNotSupported
     }
 
@@ -183,10 +184,9 @@ func (f *File) Close() error {
         if err := f.streamWrite.Close(); err != nil {
             return err
         }
-        nodes := f.streamWrite.Res()
         // Special case, some FTP clients try to create blank file
         // and then try to write it to FTP, we can ignore nodes with 0 bytes
-        if len(nodes) == 1 && nodes[0].Size == 0 {
+        if len(f.chunks) == 1 && f.chunks[0].Size == 0 {
             return nil
         }
 
@@ -205,8 +205,8 @@ func (f *File) Close() error {
         defer stmt.Close() // Prepared statements take up server resources, so ensure they're closed when done.
 
         // Insert each node
-        for _, node := range nodes {
-            if _, err := stmt.Exec(f.id, node.URL, node.Size); err != nil {
+        for _, chunk := range f.chunks {
+            if _, err := stmt.Exec(f.id, chunk.URL, chunk.Size); err != nil {
                 return err
             }
         }

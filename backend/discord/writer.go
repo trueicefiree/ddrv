@@ -7,9 +7,9 @@ import (
 // Writer is a custom writer that implements io.WriteCloser.
 // It streams data in chunks discord server channels using webhook
 type Writer struct {
-    archive   *Discord // Discord where Writer writes data
-    chunks    []Chunk  // Chunks written so far
+    disc      *Discord // Discord where Writer writes data
     chunkSize int      // The maximum Size of a chunk
+    onChunk   func(chunk Chunk)
 
     idx       int            // Current position in the current chunk
     closed    bool           // Whether the Writer has been closed
@@ -20,12 +20,12 @@ type Writer struct {
 }
 
 // NewWriter creates a new Writer with the given chunk Size and storage.
-func NewWriter(chunkSize int, arc *Discord) *Writer {
+func NewWriter(onChunk func(chunk Chunk), chunkSize int, disc *Discord) io.WriteCloser {
     sw := &Writer{
-        archive:   arc,
-        chunks:    make([]Chunk, 0),
+        disc:      disc,
         errCh:     make(chan error, 1),
         chunkCh:   make(chan Chunk, 1),
+        onChunk:   onChunk,
         chunkSize: chunkSize,
     }
     return sw
@@ -74,11 +74,6 @@ func (sw *Writer) Close() error {
     return sw.flush(false)
 }
 
-// Res returns the chunks written by the Writer so far.
-func (sw *Writer) Res() []Chunk {
-    return sw.chunks
-}
-
 // flush closes the current chunk, waits for it to be written to storage,
 // and starts a new chunk if next is true.
 func (sw *Writer) flush(next bool) error {
@@ -89,7 +84,9 @@ func (sw *Writer) flush(next bool) error {
     case err := <-sw.errCh:
         return sw.setErr(err)
     case chunk := <-sw.chunkCh:
-        sw.chunks = append(sw.chunks, chunk)
+        if sw.onChunk != nil {
+            sw.onChunk(chunk)
+        }
     }
     if next {
         sw.next()
@@ -103,7 +100,7 @@ func (sw *Writer) next() {
         reader, writer := io.Pipe()
         sw.pwriter = writer
         go func() {
-            url, size, err := sw.archive.WriteAttachment(reader)
+            url, size, err := sw.disc.WriteAttachment(reader)
             if err != nil {
                 sw.errCh <- err
             } else {

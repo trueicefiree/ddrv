@@ -15,7 +15,7 @@ type Reader struct {
     pos    int64
 }
 
-func NewReader(chunks []Chunk, pos int64, arc *Discord) (*Reader, error) {
+func NewReader(chunks []Chunk, pos int64, arc *Discord) (io.ReadCloser, error) {
     r := &Reader{chunks: chunks, pos: pos, disc: arc}
     // Calculate Start and End for each part
     var offset int64

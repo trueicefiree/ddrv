@@ -21,6 +21,7 @@ func New(fs afero.Fs, addr string) *ftpserver.FtpServer {
             DefaultTransferType:      ftpserver.TransferTypeBinary,
             ListenAddr:               addr,
             PassiveTransferPortRange: &ftpserver.PortRange{Start: 2526, End: 3535},
+            PublicHost:               "",
         },
         Fs: fs,
     }

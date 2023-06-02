@@ -10,16 +10,17 @@ import (
     "github.com/spf13/afero"
 
     "github.com/forscht/ditto/backend/discord"
+    "github.com/forscht/ditto/backend/fslog"
 )
 
 type Fs struct {
-    ro      bool
-    db      *sql.DB
-    archive *discord.Discord
+    ro   bool
+    db   *sql.DB
+    disc *discord.Discord
 }
 
-func New(db *sql.DB, arc *discord.Discord, ro bool) afero.Fs {
-    return &Fs{db: db, archive: arc, ro: ro}
+func New(db *sql.DB, disc *discord.Discord, ro bool) afero.Fs {
+    return fslog.LoadFS(&Fs{db: db, disc: disc, ro: ro})
 }
 
 func (fs *Fs) Name() string { return "Fs" }
@@ -97,7 +98,7 @@ func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
-    file := &File{fd: os.O_RDONLY, db: fs.db, disc: fs.archive}
+    file := &File{fd: os.O_RDONLY, db: fs.db, disc: fs.disc}
     err := fs.db.QueryRow("SELECT id, name, dir, size, atime, mtime FROM stat($1)", name).
         Scan(&file.id, &file.name, &file.dir, &file.size, &file.atime, &file.mtime)
     if err != nil {
@@ -125,7 +126,7 @@ func (fs *Fs) Open(name string) (afero.File, error) {
 
 // OpenFile supported flags, O_WRONLY, O_CREATE, O_RDONLY
 func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error) {
-    file := &File{fd: flag, db: fs.db, disc: fs.archive}
+    file := &File{fd: flag, db: fs.db, disc: fs.disc}
 
     // Reading and writing not supported at once, since we're not making entries in database until file is closed
     if flag&(os.O_RDWR|os.O_APPEND) != 0 {
