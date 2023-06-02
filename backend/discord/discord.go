@@ -2,21 +2,16 @@ package discord
 
 import (
     "context"
-    "errors"
     "fmt"
     "io"
     "net/http"
     "net/http/httptrace"
-
-    "github.com/disgoorg/disgo/discord"
-    "github.com/disgoorg/disgo/webhook"
-    "github.com/google/uuid"
 )
 
 // Chunk represents a portion of data with a URL for fetching the data,
 type Chunk struct {
-    URL   string // URL where the chunk is stored
-    Size  int    // Size of the chunk
+    URL   string `json:"url"`  // URL where the chunk is stored
+    Size  int    `json:"size"` // Size of the chunk
     Start int64  // Start position of the chunk in the overall data sequence
     End   int64  // End position of the chunk in the overall data sequence
 }
@@ -24,11 +19,11 @@ type Chunk struct {
 // Discord is a structure that manages interactions with Discord webhooks,
 // providing an interface to write and read attachments.
 type Discord struct {
-    chunkSize int              // Size of each chunk of data to be processed
-    webhooks  []string         // List of webhook URLs to be used for data storing
-    clients   []webhook.Client // List of webhook clients corresponding to the webhook URLs
-    lastWbIdx int              // Index of the last used webhook client
-    traceCtx  context.Context  // Context for HTTP client tracing
+    chunkSize int             // Size of each chunk of data to be processed
+    webhooks  []string        // List of webhook URLs to be used for data storing
+    clients   []*Rest         // List of webhook clients corresponding to the webhook URLs
+    lastCIdx  int             // Index of the last used webhook client
+    traceCtx  context.Context // Context for HTTP client tracing
 }
 
 // New returns a new instance of Discord with specified chunk size and webhook URLs.
@@ -37,10 +32,10 @@ func New(chunkSize int, webhooks []string) (*Discord, error) {
     st := &Discord{
         chunkSize: chunkSize,
         webhooks:  webhooks,
-        clients:   make([]webhook.Client, 0),
+        clients:   make([]*Rest, 0),
     }
     for _, url := range webhooks {
-        client, err := webhook.NewWithURL(url)
+        client, err := NewRest(url)
         if err != nil {
             return nil, err
         }
@@ -55,7 +50,7 @@ func New(chunkSize int, webhooks []string) (*Discord, error) {
 }
 
 // NewWriter creates a new Writer instance with the chunk size of the Discord instance.
-func (d *Discord) NewWriter(onChunk func(chunk Chunk)) io.WriteCloser {
+func (d *Discord) NewWriter(onChunk func(chunk *Chunk)) io.WriteCloser {
     return NewWriter(onChunk, d.chunkSize, d)
 }
 
@@ -84,34 +79,19 @@ func (d *Discord) ReadAttachment(url string, start, end int) (io.ReadCloser, err
 }
 
 // WriteAttachment writes the data read from the provided Reader as a new attachment, returning the URL and size of the attachment.
-func (d *Discord) WriteAttachment(r io.Reader) (string, int, error) {
+func (d *Discord) WriteAttachment(r io.Reader) (*Chunk, error) {
     // Select the next webhook client
     client := d.next()
 
     // Create a new Discord message with the data as an attachment
-    m, err := client.CreateMessage(
-        discord.
-            NewWebhookMessageCreateBuilder().
-            AddFile(uuid.New().String(), "", r).
-            Build(),
-    )
-    if err != nil {
-        return "", 0, err
-    }
-    // Ensure the message contains exactly one attachment
-    if len(m.Attachments) != 1 {
-        return "", 0, errors.New("invalid attachments len")
-    }
-
-    // Return the URL and size of the attachment
-    return m.Attachments[0].URL, m.Attachments[0].Size, nil
+    return client.CreateAttachment(r)
 }
 
 // next returns the next webhook client in the list, cycling through the list in a round-robin manner.
-func (d *Discord) next() webhook.Client {
+func (d *Discord) next() *Rest {
     // Select the next client
-    client := d.clients[d.lastWbIdx]
+    client := d.clients[d.lastCIdx]
     // Update the index of the last used client, wrapping around to the start of the list if necessary
-    d.lastWbIdx = (d.lastWbIdx + 1) % len(d.clients)
+    d.lastCIdx = (d.lastCIdx + 1) % len(d.clients)
     return client
 }

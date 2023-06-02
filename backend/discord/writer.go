@@ -9,22 +9,22 @@ import (
 type Writer struct {
     disc      *Discord // Discord where Writer writes data
     chunkSize int      // The maximum Size of a chunk
-    onChunk   func(chunk Chunk)
+    onChunk   func(chunk *Chunk)
 
     idx       int            // Current position in the current chunk
     closed    bool           // Whether the Writer has been closed
     errCh     chan error     // Channel to send any errors that occur during writing
-    chunkCh   chan Chunk     // Channel to send chunks after they're written
+    chunkCh   chan *Chunk    // Channel to send chunks after they're written
     pwriter   *io.PipeWriter // PipeWriter for writing the current chunk
     streamErr error          // Last error occurred during stream write
 }
 
 // NewWriter creates a new Writer with the given chunk Size and storage.
-func NewWriter(onChunk func(chunk Chunk), chunkSize int, disc *Discord) io.WriteCloser {
+func NewWriter(onChunk func(chunk *Chunk), chunkSize int, disc *Discord) io.WriteCloser {
     sw := &Writer{
         disc:      disc,
         errCh:     make(chan error, 1),
-        chunkCh:   make(chan Chunk, 1),
+        chunkCh:   make(chan *Chunk, 1),
         onChunk:   onChunk,
         chunkSize: chunkSize,
     }
@@ -100,12 +100,12 @@ func (sw *Writer) next() {
         reader, writer := io.Pipe()
         sw.pwriter = writer
         go func() {
-            url, size, err := sw.disc.WriteAttachment(reader)
+            chunk, err := sw.disc.WriteAttachment(reader)
             if err != nil {
                 sw.errCh <- err
             } else {
                 sw.idx = 0
-                sw.chunkCh <- Chunk{URL: url, Size: size}
+                sw.chunkCh <- chunk
             }
         }()
     }

@@ -25,7 +25,7 @@ type File struct {
 
     db          *sql.DB
     disc        *discord.Discord
-    chunks      []discord.Chunk
+    chunks      []*discord.Chunk
     streamWrite io.WriteCloser
     streamRead  io.ReadCloser
 }
@@ -135,7 +135,7 @@ func (f *File) Write(p []byte) (int, error) {
         return 0, ErrReadOnly
     }
     if f.streamWrite == nil {
-        f.streamWrite = f.disc.NewWriter(func(chunk discord.Chunk) {
+        f.streamWrite = f.disc.NewWriter(func(chunk *discord.Chunk) {
             f.chunks = append(f.chunks, chunk)
         })
     }
