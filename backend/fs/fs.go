@@ -9,8 +9,8 @@ import (
 
     "github.com/spf13/afero"
 
-    "github.com/forscht/ditto/backend/discord"
-    "github.com/forscht/ditto/backend/fslog"
+    "github.com/forscht/ddrv/backend/discord"
+    "github.com/forscht/ddrv/backend/fslog"
 )
 
 type Fs struct {
@@ -19,8 +19,8 @@ type Fs struct {
     disc *discord.Discord
 }
 
-func New(db *sql.DB, disc *discord.Discord, ro bool) afero.Fs {
-    return fslog.LoadFS(&Fs{db: db, disc: disc, ro: ro})
+func New(db *sql.DB, disc *discord.Discord) afero.Fs {
+    return fslog.LoadFS(&Fs{db: db, disc: disc})
 }
 
 func (fs *Fs) Name() string { return "Fs" }
@@ -129,7 +129,7 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
     file := &File{flag: flag, db: fs.db, disc: fs.disc}
 
     if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC) {
-        return nil, PathError("open", name, ErrNotSupported)
+        return nil, PathError("open", name, ErrFlagNotSupported)
     }
 
     // If file system is read only, only allow readonly flag

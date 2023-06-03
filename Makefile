@@ -1,19 +1,19 @@
 # Name of the binary to build
-BINARY_NAME=ditto
+BINARY_NAME=ddrv
 
 # Go source files
 SRC=$(shell find . -name "*.go" -type f)
 
 # Build the binary for the current platform
 build:
-	go build -o $(BINARY_NAME) ./cmd/ditto
+	go build -race -o $(BINARY_NAME) ./cmd/ddrv
 
 build-debug:
-	go build -tags=debug -o $(BINARY_NAME) ./cmd/ditto
+	go build -tags=debug -o $(BINARY_NAME) ./cmd/ddrv
 
 # Build the binary for linux/amd64
 build-linux:
-	GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME) ./cmd/ditto
+	GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME) ./cmd/ddrv
 
 # Build the Docker image
 docker-build:

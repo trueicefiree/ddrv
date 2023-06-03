@@ -136,14 +136,12 @@ func (f *File) ReadAt(p []byte, off int64) (int, error) {
     if err == nil {
         f.lengthRead += n
     }
-    log.Printf("fs op=%s offset=%d error=%v", "readat", off, err)
     return n, err
 }
 
 // Seek won't be logged
 func (f *File) Seek(offset int64, whence int) (int64, error) {
     n, err := f.src.Seek(offset, whence)
-    log.Printf("fs op=%s offset=%d whence=%d error=%v", "seek", offset, whence, err)
     return n, err
 }
 

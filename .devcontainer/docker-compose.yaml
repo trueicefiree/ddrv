@@ -1,6 +1,6 @@
 version: '3.8'
 
-name: "ditto"
+name: "ddrv"
 services:
   postgres:
     container_name: dittopg
@@ -10,8 +10,8 @@ services:
     ports:
       - "5430:5432"
     environment:
-      POSTGRES_USER: ditto
-      POSTGRES_DB: ditto
-      POSTGRES_PASSWORD: ditto
+      POSTGRES_USER: ddrv
+      POSTGRES_DB: ddrv
+      POSTGRES_PASSWORD: ddrv
 volumes:
   dittopg:

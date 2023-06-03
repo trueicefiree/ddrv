@@ -7,7 +7,7 @@ import (
     "path/filepath"
     "time"
 
-    "github.com/forscht/ditto/backend/discord"
+    "github.com/forscht/ddrv/backend/discord"
 )
 
 type File struct {
@@ -230,7 +230,10 @@ func (f *File) Close() error {
                 return err
             }
         }
-
+        // Update mtime every time something is written on file
+        if _, err := tx.Exec("UPDATE fs SET mtime = NOW() WHERE id=$1", f.id); err != nil {
+            return err
+        }
         // If everything went well, commit the transaction
         if err := tx.Commit(); err != nil {
             return err
