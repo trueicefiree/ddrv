@@ -3,10 +3,10 @@ version: '3.8'
 name: "ddrv"
 services:
   postgres:
-    container_name: dittopg
+    container_name: ddrvpg
     image: postgres:alpine
     volumes:
-      - dittopg:/var/lib/postgresql/data
+      - ddrvpg:/var/lib/postgresql/data
     ports:
       - "5430:5432"
     environment:
@@ -14,4 +14,4 @@ services:
       POSTGRES_DB: ddrv
       POSTGRES_PASSWORD: ddrv
 volumes:
-  dittopg:
+  ddrvpg:
