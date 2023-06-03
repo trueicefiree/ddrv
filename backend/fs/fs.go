@@ -38,7 +38,7 @@ func (fs *Fs) Create(name string) (afero.File, error) {
     if fs.ro {
         return nil, PathError("create", name, ErrReadOnly)
     }
-    if err := fs.db.QueryRow("SELECT FROM touch($1)", name).Err(); err != nil {
+    if _, err := fs.db.Exec("SELECT FROM touch($1)", name); err != nil {
         return nil, err
     }
     return fs.OpenFile(name, os.O_WRONLY, 0666)

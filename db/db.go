@@ -24,7 +24,7 @@ func New(connStr string, skipMigration bool) *sql.DB {
     // This is to prevent excessive resource use and ensure the database
     // doesn't become overwhelmed with connections, particularly in cases
     // where many small files are being uploaded simultaneously.
-    //db.SetMaxOpenConns(100)
+    db.SetMaxOpenConns(100)
 
     // Ping the database to ensure connectivity
     if err := db.Ping(); err != nil {
