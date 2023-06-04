@@ -1,26 +1,26 @@
 package fs
 
 import (
-    "database/sql"
-    "io"
-    "os"
-    "path/filepath"
-    "time"
+	"database/sql"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
 
-    "github.com/spf13/afero"
+	"github.com/spf13/afero"
 
-    "github.com/forscht/ddrv/backend/discord"
-    "github.com/forscht/ddrv/backend/fslog"
+	"github.com/forscht/ddrv/backend/discord"
+	"github.com/forscht/ddrv/backend/fslog"
 )
 
 type Fs struct {
-    ro   bool
-    db   *sql.DB
-    disc *discord.Discord
+	ro   bool
+	db   *sql.DB
+	disc *discord.Discord
 }
 
 func New(db *sql.DB, disc *discord.Discord) afero.Fs {
-    return fslog.LoadFS(&Fs{db: db, disc: disc})
+	return fslog.LoadFS(&Fs{db: db, disc: disc})
 }
 
 func (fs *Fs) Name() string { return "Fs" }
@@ -29,203 +29,203 @@ func (fs *Fs) Chown(_ string, _, _ int) error { return ErrNotSupported }
 
 func (fs *Fs) Chmod(_ string, _ os.FileMode) error { return ErrNotSupported }
 
-func (fs *Fs) Chtimes(name string, atime time.Time, mtime time.Time) error {
-    _, err := fs.db.Exec("UPDATE fs SET atime = $1, mtime = $2 WHERE id = (SELECT id FROM stat($3));", atime, mtime, name)
-    return err
+func (fs *Fs) Chtimes(name string, _ time.Time, mtime time.Time) error {
+	_, err := fs.db.Exec("UPDATE fs SET mtime = $1 WHERE id = (SELECT id FROM stat($2));", mtime, name)
+	return err
 }
 
 func (fs *Fs) Create(name string) (afero.File, error) {
-    if fs.ro {
-        return nil, PathError("create", name, ErrReadOnly)
-    }
-    if _, err := fs.db.Exec("SELECT FROM touch($1)", name); err != nil {
-        return nil, err
-    }
-    return fs.OpenFile(name, os.O_WRONLY, 0666)
+	if fs.ro {
+		return nil, PathError("create", name, ErrReadOnly)
+	}
+	if _, err := fs.db.Exec("SELECT FROM touch($1)", name); err != nil {
+		return nil, err
+	}
+	return fs.OpenFile(name, os.O_WRONLY, 0666)
 }
 
 func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
-    if fs.ro {
-        return PathError("mkdir", name, ErrReadOnly)
-    }
-    var dir bool
-    parent, _ := filepath.Split(name)
-    err := fs.db.QueryRow("SELECT dir FROM stat($1)", parent).Scan(&dir)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return PathError("mkdir", name, ErrNotExist)
-        }
-        return err
-    }
+	if fs.ro {
+		return PathError("mkdir", name, ErrReadOnly)
+	}
+	var dir bool
+	parent, _ := filepath.Split(name)
+	err := fs.db.QueryRow("SELECT dir FROM stat($1)", parent).Scan(&dir)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return PathError("mkdir", name, ErrNotExist)
+		}
+		return err
+	}
 
-    if !dir {
-        return PathError("mkdir", name, ErrIsNotDir)
-    }
-    _, err = fs.db.Exec("SELECT mkdir($1)", name)
-    return err
+	if !dir {
+		return PathError("mkdir", name, ErrIsNotDir)
+	}
+	_, err = fs.db.Exec("SELECT mkdir($1)", name)
+	return err
 }
 
 func (fs *Fs) MkdirAll(path string, _ os.FileMode) error {
-    if fs.ro {
-        return PathError("mkdirall", path, ErrReadOnly)
-    }
-    _, err := fs.db.Exec("SELECT mkdir($1)", path)
-    return err
+	if fs.ro {
+		return PathError("mkdirall", path, ErrReadOnly)
+	}
+	_, err := fs.db.Exec("SELECT mkdir($1)", path)
+	return err
 }
 
 // ReadDir ClientDriverExtensionFileList for FTPServer
 func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
-    rows, err := fs.db.Query("SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name", name)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := fs.db.Query("SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name", name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    entries := make([]os.FileInfo, 0)
-    for rows.Next() {
-        file := new(File)
-        if err := rows.Scan(&file.id, &file.name, &file.dir, &file.size, &file.mtime); err != nil {
-            return nil, err
-        }
-        stat, _ := file.Stat()
-        entries = append(entries, stat)
-    }
-    if len(entries) == 0 {
-        err = io.EOF
-    }
+	entries := make([]os.FileInfo, 0)
+	for rows.Next() {
+		file := new(File)
+		if err := rows.Scan(&file.id, &file.name, &file.dir, &file.size, &file.mtime); err != nil {
+			return nil, err
+		}
+		stat, _ := file.Stat()
+		entries = append(entries, stat)
+	}
+	if len(entries) == 0 {
+		err = io.EOF
+	}
 
-    return entries, err
+	return entries, err
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
-    file := &File{flag: os.O_RDONLY, db: fs.db, disc: fs.disc}
-    err := fs.db.QueryRow("SELECT id, name, dir, size, atime, mtime FROM stat($1)", name).
-        Scan(&file.id, &file.name, &file.dir, &file.size, &file.atime, &file.mtime)
-    if err != nil {
-        return nil, PathError("open", name, ErrNotExist)
-    }
-    if !file.dir {
-        rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
-        if err != nil {
-            return nil, err
-        }
-        defer rows.Close()
-        file.data = make([]Node, 0)
-        for rows.Next() {
-            node := new(Node)
-            err := rows.Scan(&node.id, &node.url, &node.size, &node.iv, &node.mtime)
-            if err != nil {
-                return nil, err
-            }
-            file.data = append(file.data, *node)
-        }
-    }
+	file := &File{flag: os.O_RDONLY, db: fs.db, disc: fs.disc}
+	err := fs.db.QueryRow("SELECT id, name, dir, size, mtime FROM stat($1)", name).
+		Scan(&file.id, &file.name, &file.dir, &file.size, &file.mtime)
+	if err != nil {
+		return nil, PathError("open", name, ErrNotExist)
+	}
+	if !file.dir {
+		rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		file.data = make([]Node, 0)
+		for rows.Next() {
+			node := new(Node)
+			err := rows.Scan(&node.id, &node.url, &node.size, &node.iv, &node.mtime)
+			if err != nil {
+				return nil, err
+			}
+			file.data = append(file.data, *node)
+		}
+	}
 
-    return file, nil
+	return file, nil
 }
 
 // OpenFile supported flags, O_WRONLY, O_CREATE, O_RDONLY
 func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error) {
-    file := &File{flag: flag, db: fs.db, disc: fs.disc}
+	file := &File{flag: flag, db: fs.db, disc: fs.disc}
 
-    if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC) {
-        return nil, PathError("open", name, ErrFlagNotSupported)
-    }
+	if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC) {
+		return nil, PathError("open", name, ErrFlagNotSupported)
+	}
 
-    // If file system is read only, only allow readonly flag
-    if fs.ro && CheckFlag(flag, os.O_RDONLY) {
-        return nil, PathError("open", name, ErrReadOnly)
-    }
+	// If a file system is read only, only allow a readonly flag
+	if fs.ro && CheckFlag(flag, os.O_RDONLY) {
+		return nil, PathError("open", name, ErrReadOnly)
+	}
 
-    err := fs.db.QueryRow("SELECT id, name, dir, size, atime, mtime FROM stat($1)", name).
-        Scan(&file.id, &file.name, &file.dir, &file.size, &file.atime, &file.mtime)
+	err := fs.db.QueryRow("SELECT id, name, dir, size, mtime FROM stat($1)", name).
+		Scan(&file.id, &file.name, &file.dir, &file.size, &file.mtime)
 
-    if err != nil && err == sql.ErrNoRows {
-        // If record not found just create new file and return
-        if CheckFlag(os.O_CREATE, flag) {
-            return fs.Create(name)
-        }
-        return nil, PathError("open", name, ErrNotExist)
-    } else if err != nil {
-        return nil, err
-    }
+	if err != nil && err == sql.ErrNoRows {
+		// If record not found just create new file and return
+		if CheckFlag(os.O_CREATE, flag) {
+			return fs.Create(name)
+		}
+		return nil, PathError("open", name, ErrNotExist)
+	} else if err != nil {
+		return nil, err
+	}
 
-    if CheckFlag(os.O_TRUNC, flag) {
-        if _, err := fs.db.Exec("DELETE FROM node WHERE file=$1", file.id); err != nil {
-            return nil, err
-        }
-    }
+	if CheckFlag(os.O_TRUNC, flag) {
+		if _, err := fs.db.Exec("DELETE FROM node WHERE file=$1", file.id); err != nil {
+			return nil, err
+		}
+	}
 
-    if !file.dir && flag&os.O_TRUNC == 0 {
-        rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
-        if err != nil {
-            return nil, err
-        }
-        defer rows.Close()
-        file.data = make([]Node, 0)
-        for rows.Next() {
-            node := new(Node)
-            err := rows.Scan(&node.id, &node.url, &node.size, &node.iv, &node.mtime)
-            if err != nil {
-                return nil, err
-            }
-            file.data = append(file.data, *node)
-        }
-    }
+	if !file.dir {
+		rows, err := fs.db.Query("SELECT id, url, size, iv, mtime FROM node where file = $1", file.id)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		file.data = make([]Node, 0)
+		for rows.Next() {
+			node := new(Node)
+			err := rows.Scan(&node.id, &node.url, &node.size, &node.iv, &node.mtime)
+			if err != nil {
+				return nil, err
+			}
+			file.data = append(file.data, *node)
+		}
+	}
 
-    return file, nil
+	return file, nil
 }
 
 func (fs *Fs) Remove(name string) error {
-    if fs.ro {
-        return PathError("remove", name, ErrReadOnly)
-    }
-    parent, _ := filepath.Split(name)
-    var id string
-    err := fs.db.QueryRow("SELECT id FROM stat($1)", parent).Scan(&id)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return PathError("remove", name, ErrNotExist)
-        }
-        return err
-    }
-    _, err = fs.db.Exec("SELECT rm($1)", name)
-    return err
+	if fs.ro {
+		return PathError("remove", name, ErrReadOnly)
+	}
+	parent, _ := filepath.Split(name)
+	var id string
+	err := fs.db.QueryRow("SELECT id FROM stat($1)", parent).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return PathError("remove", name, ErrNotExist)
+		}
+		return err
+	}
+	_, err = fs.db.Exec("SELECT rm($1)", name)
+	return err
 }
 
 func (fs *Fs) RemoveAll(path string) error {
-    if fs.ro {
-        return PathError("removeall", path, ErrReadOnly)
-    }
-    _, err := fs.db.Exec("SELECT rm($1)", path)
-    return err
+	if fs.ro {
+		return PathError("removeall", path, ErrReadOnly)
+	}
+	_, err := fs.db.Exec("SELECT rm($1)", path)
+	return err
 }
 
 func (fs *Fs) Rename(oldname, newname string) error {
-    if fs.ro {
-        return PathError("rename", newname, ErrReadOnly)
-    }
-    _, err := fs.db.Exec("SELECT mv($1, $2)", oldname, newname)
-    return err
+	if fs.ro {
+		return PathError("rename", newname, ErrReadOnly)
+	}
+	_, err := fs.db.Exec("SELECT mv($1, $2)", oldname, newname)
+	return err
 }
 
 func (fs *Fs) Stat(name string) (os.FileInfo, error) {
-    file := new(File)
-    err := fs.db.QueryRow("SELECT id, name, dir, size, atime, mtime FROM stat($1)", name).
-        Scan(&file.id, &file.name, &file.dir, &file.size, &file.atime, &file.mtime)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, ErrNotExist
-        }
-        return nil, err
-    }
-    return file.Stat()
+	file := new(File)
+	err := fs.db.QueryRow("SELECT id, name, dir, size, mtime FROM stat($1)", name).
+		Scan(&file.id, &file.name, &file.dir, &file.size, &file.mtime)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotExist
+		}
+		return nil, err
+	}
+	return file.Stat()
 }
 
 func PathError(op string, path string, err error) *os.PathError {
-    return &os.PathError{Op: op, Path: path, Err: err}
+	return &os.PathError{Op: op, Path: path, Err: err}
 }
 
 func CheckFlag(flag int, allowedFlags int) bool {
-    return flag == (flag & allowedFlags)
+	return flag == (flag & allowedFlags)
 }
