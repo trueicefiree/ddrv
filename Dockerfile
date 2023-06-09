@@ -7,9 +7,11 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 GOOS=linux go build -race -o /app/ddrv ./cmd/ddrv
+RUN make build-docker
 
-FROM gcr.io/distroless/base-debian11
+FROM scratch
+
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 WORKDIR /app
 
