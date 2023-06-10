@@ -11,16 +11,12 @@ build:
 build-debug:
 	go build -tags=debug -o $(BINARY_NAME) ./cmd/ddrv
 
-# Build the binary for linux/amd64
-build-linux:
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BINARY_NAME) ./cmd/ddrv
-
-# Build the binary for Docker image
+# Build the binary inside docker image
 build-docker:
-	CGO_ENABLED=0 GOOS=linux go build -o $(BINARY_NAME) ./cmd/ddrv
+	CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o $(BINARY_NAME) ./cmd/ddrv
 
 # Build the Docker image
-build-docker-image:
+build-image:
 	docker build -t ddrv:latest .
 
 # Clean the project
