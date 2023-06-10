@@ -86,7 +86,6 @@ We welcome contributions to ddrv! Here's how you can help:
 - [ ] Write tests for 100% coverage: Ensuring that all code paths are tested will greatly increase the reliability of the software
 - [ ] Enable parallel upload for single file: This will speed up the upload process by sending multiple chunks of a single file simultaneously.
 
-License
-
+### License
 [ddrv](/) is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).<br /> See the [LICENSE](LICENSE) file for full license details. <br /> 
 For quick reference, the AGPL-3.0 permits use, duplication, modification, and distribution of the software, given that the conditions of the license are met. This license also includes a requirement that if you run modifications of the software on a network, you must make the modified source code available to users. However, the software is provided "as is" and without any warranty. For more information, please read the full license text.
