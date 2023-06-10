@@ -1,22 +1,22 @@
 package discord
 
 import (
-    "encoding/json"
-    "errors"
-    "fmt"
-    "io"
-    "net/http"
-    "regexp"
-    "strconv"
-    "strings"
-    "time"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
-    "github.com/google/uuid"
+	"github.com/google/uuid"
 )
 
 const (
-    rateRemainingHeader = "X-RateLimit-Remaining"
-    rateResetHeader     = "X-RateLimit-Reset"
+	rateRemainingHeader = "X-RateLimit-Remaining"
+	rateResetHeader     = "X-RateLimit-Reset"
 )
 
 // ErrInvalidWebhookURL is the error returned for an invalid webhook URL.
@@ -27,86 +27,86 @@ var WebhookURLRegex = regexp.MustCompile(`^https://(?:[a-zA-Z]+\.)?discord\.com/
 
 // Message represents a Discord message and contains attachments (files uploaded within the message).
 type Message struct {
-    Attachments []Chunk `json:"attachments"`
+	Attachments []Chunk `json:"attachments"`
 }
 
 // Rest represents the Discord webhook REST client.
 type Rest struct {
-    url       string
-    resetAt   time.Time
-    remaining int
+	url       string
+	resetAt   time.Time
+	remaining int
 }
 
 // NewRest creates a new Rest instance with the provided webhook URL.
 func NewRest(webhookURL string) (*Rest, error) {
-    // Validate the webhook URL using the regex pattern
-    if ok := WebhookURLRegex.MatchString(webhookURL); !ok {
-        return nil, ErrInvalidWebhookURL
-    }
+	// Validate the webhook URL using the regex pattern
+	if ok := WebhookURLRegex.MatchString(webhookURL); !ok {
+		return nil, ErrInvalidWebhookURL
+	}
 
-    return &Rest{url: webhookURL}, nil
+	return &Rest{url: webhookURL}, nil
 }
 
 // CreateAttachment uploads a file to the Discord channel using the webhook.
 func (r *Rest) CreateAttachment(reader io.Reader) (*Chunk, error) {
-    // Sleep if we hit the rate limit and it's not yet reset
-    if r.remaining == 0 && time.Now().Before(r.resetAt) {
-        sleepDuration := r.resetAt.Sub(time.Now())
-        time.Sleep(sleepDuration)
-    }
+	// Sleep if we hit the rate limit and it's not yet reset
+	if r.remaining == 0 && time.Now().Before(r.resetAt) {
+		sleepDuration := r.resetAt.Sub(time.Now())
+		time.Sleep(sleepDuration)
+	}
 
-    // Make the HTTP POST request to the webhook URL
-    ctype, body := mbody(reader)
-    resp, err := http.Post(r.url, ctype, body)
-    if err != nil {
-        return nil, err
-    }
+	// Make the HTTP POST request to the webhook URL
+	ctype, body := mbody(reader)
+	resp, err := http.Post(r.url, ctype, body)
+	if err != nil {
+		return nil, err
+	}
 
-    // Update rate limit headers
-    {
-        r.remaining, _ = strconv.Atoi(resp.Header.Get(rateRemainingHeader))
-        resetUnix, _ := strconv.ParseInt(resp.Header.Get(rateResetHeader), 10, 64)
-        r.resetAt = time.Unix(resetUnix, 0)
-    }
+	// Update rate limit headers
+	{
+		r.remaining, _ = strconv.Atoi(resp.Header.Get(rateRemainingHeader))
+		resetUnix, _ := strconv.ParseInt(resp.Header.Get(rateResetHeader), 10, 64)
+		r.resetAt = time.Unix(resetUnix, 0)
+	}
 
-    // Read and parse the response body
-    respBody, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return nil, err
-    }
+	// Read and parse the response body
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
-    var m Message
-    if err := json.Unmarshal(respBody, &m); err != nil {
-        return nil, err
-    }
+	var m Message
+	if err := json.Unmarshal(respBody, &m); err != nil {
+		return nil, err
+	}
 
-    // Return the first attachment from the response
-    return &m.Attachments[0], nil
+	// Return the first attachment from the response
+	return &m.Attachments[0], nil
 }
 
 // mbody creates the multipart form-data body to upload a file to the Discord channel using the webhook.
 func mbody(reader io.Reader) (string, io.Reader) {
-    boundary := "disgosucks"
-    // Set the content type including the boundary
-    contentType := fmt.Sprintf("multipart/form-data; boundary=%s", boundary)
+	boundary := "disgosucks"
+	// Set the content type including the boundary
+	contentType := fmt.Sprintf("multipart/form-data; boundary=%s", boundary)
 
-    CRLF := "\r\n"
-    fname := uuid.New().String()
+	CRLF := "\r\n"
+	fname := uuid.New().String()
 
-    // Assemble all the parts of the multipart form-data
-    // This includes the boundary, content disposition with the file name, content type,
-    // a blank line to end headers, the actual content (reader), end of content,
-    // and end of multipart data
-    parts := []io.Reader{
-        strings.NewReader("--" + boundary + CRLF),
-        strings.NewReader(fmt.Sprintf(`Content-Disposition: form-data; name="%s"; filename="%s"`, fname, fname) + CRLF),
-        strings.NewReader(fmt.Sprintf(`Content-Type: %s`, "application/octet-stream") + CRLF),
-        strings.NewReader(CRLF),
-        reader,
-        strings.NewReader(CRLF),
-        strings.NewReader("--" + boundary + "--" + CRLF),
-    }
+	// Assemble all the parts of the multipart form-data
+	// This includes the boundary, content disposition with the file name, content type,
+	// a blank line to end headers, the actual content (reader), end of content,
+	// and end of multipart data
+	parts := []io.Reader{
+		strings.NewReader("--" + boundary + CRLF),
+		strings.NewReader(fmt.Sprintf(`Content-Disposition: form-data; name="%s"; filename="%s"`, fname, fname) + CRLF),
+		strings.NewReader(fmt.Sprintf(`Content-Type: %s`, "application/octet-stream") + CRLF),
+		strings.NewReader(CRLF),
+		reader,
+		strings.NewReader(CRLF),
+		strings.NewReader("--" + boundary + "--" + CRLF),
+	}
 
-    // Return the content type and the combined reader of all parts
-    return contentType, io.MultiReader(parts...)
+	// Return the content type and the combined reader of all parts
+	return contentType, io.MultiReader(parts...)
 }

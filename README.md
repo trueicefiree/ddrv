@@ -77,6 +77,10 @@ We welcome contributions to ddrv! Here's how you can help:
 3. Open a PR with your changes, and describe the changes you've made and why. If your PR closes an issue, include "Closes #123" (where 123 is the issue number) in your PR description.
 
 ### Roadmap
+- [ ] Add AES-256-CTR encryption.
+- [ ] Fix Project file structure.
+- [ ] Convert project to cobra command app.
+- [ ] Maybe convert postgres `stat` function to material table view before stable release.
 - [ ] Add HTTP Frontend with video playback support: This will allow for direct video streaming from the storage
 - [ ] Add support for FTP TLS config: This will secure the data transfer process between the FTP client and the ddrv server
 - [ ] Write tests for 100% coverage: Ensuring that all code paths are tested will greatly increase the reliability of the software
