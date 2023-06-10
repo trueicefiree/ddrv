@@ -8,6 +8,7 @@ import (
     "regexp"
     "strconv"
     "strings"
+    "sync"
     "time"
 
     "github.com/google/uuid"
@@ -31,6 +32,7 @@ type Rest struct {
     url       string
     resetAt   time.Time
     remaining int
+    mu        sync.RWMutex
 }
 
 // NewRest creates a new Rest instance with the provided webhook URL.
@@ -45,11 +47,13 @@ func NewRest(webhookURL string) (*Rest, error) {
 
 // CreateAttachment uploads a file to the Discord channel using the webhook.
 func (r *Rest) CreateAttachment(reader io.Reader) (*Attachment, error) {
-    // Sleep if we hit the rate limit, and it's not yet reset
+    r.mu.RLock()
+    // Sleep if we hit the rate limit, and it's not reset yet
     if r.remaining == 0 && time.Now().Before(r.resetAt) {
         sleepDuration := r.resetAt.Sub(time.Now())
         time.Sleep(sleepDuration)
     }
+    r.mu.RUnlock()
 
     // Make the HTTP POST request to the webhook URL
     // using multipart body
@@ -60,11 +64,11 @@ func (r *Rest) CreateAttachment(reader io.Reader) (*Attachment, error) {
     }
 
     // Update rate limit headers
-    {
-        r.remaining, _ = strconv.Atoi(resp.Header.Get(rateRemainingHeader))
-        resetUnix, _ := strconv.ParseInt(resp.Header.Get(rateResetHeader), 10, 64)
-        r.resetAt = time.Unix(resetUnix, 0)
-    }
+    r.mu.Lock()
+    r.remaining, _ = strconv.Atoi(resp.Header.Get(rateRemainingHeader))
+    resetUnix, _ := strconv.ParseInt(resp.Header.Get(rateResetHeader), 10, 64)
+    r.resetAt = time.Unix(resetUnix, 0)
+    r.mu.Unlock()
 
     // Read and parse the response body
     respBody, err := io.ReadAll(resp.Body)
