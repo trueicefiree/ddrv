@@ -81,13 +81,15 @@ func (mgr *Manager) Read(url string, start, end int) (io.ReadCloser, error) {
         return nil, err
     }
     // Set the Range header to specify the range of data to fetch
-    req.Header.Set("Range", fmt.Sprintf("bytes=%mgr-%mgr", start, end))
+    req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end))
 
     res, err := http.DefaultClient.Do(req)
     if err != nil {
         return nil, err
     }
-
+    if res.StatusCode != http.StatusPartialContent {
+        return nil, fmt.Errorf("expected code 206 but received %d", res.StatusCode)
+    }
     // Return the body of the response, which contains the requested data
     return res.Body, nil
 }

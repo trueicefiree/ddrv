@@ -3,12 +3,15 @@ package ftp
 import (
     "crypto/tls"
     "errors"
+    "fmt"
     "io"
     "log"
     "net/http"
 
     "github.com/fclairamb/ftpserverlib"
     "github.com/spf13/afero"
+
+    "github.com/forscht/ddrv/internal/config"
 )
 
 const IPResolveURL = "https://ipinfo.io/ip"
@@ -22,15 +25,25 @@ var (
 // New creates a new FTP server instance with the provided file system and address.
 func New(
     fs afero.Fs,
-    addr string,
-    portRange *ftpserver.PortRange,
-    user string,
-    pass string,
 ) *ftpserver.FtpServer { // Return a pointer to an FTP server instance
+
+    addr := config.C().GetFTPAddr()
+    ptr := config.C().GetFTPPortRange()
+    username := config.C().GetUsername()
+    password := config.C().GetPassword()
+
+    var portRange *ftpserver.PortRange
+    if ptr != "" {
+        portRange = &ftpserver.PortRange{}
+        if _, err := fmt.Sscanf(ptr, "%d-%d", &portRange.Start, &portRange.End); err != nil {
+            log.Fatalf("bad ftp port range %v", err)
+        }
+    }
+
     driver := &Driver{
-        Fs:       fs,   // The file system to serve over FTP
-        username: user, // Username for authentication
-        password: pass, // Password for authentication
+        Fs:       fs,       // The file system to serve over FTP
+        username: username, // Username for authentication
+        password: password, // Password for authentication
         Settings: &ftpserver.Settings{
             ListenAddr:          addr,                         // The network address to listen on
             DefaultTransferType: ftpserver.TransferTypeBinary, // Default to binary transfer mode
@@ -45,9 +58,9 @@ func New(
     if portRange != nil {
         // Range of ports for passive FTP connections
         driver.Settings.PassiveTransferPortRange = portRange
-        // Function to resolve the public IP of the server
+        // Function to resolve the static IP of the server
         driver.Settings.PublicIPResolver = func(context ftpserver.ClientContext) (string, error) {
-            resp, err := http.Get(IPResolveURL) // Fetch public IP
+            resp, err := http.Get(IPResolveURL) // Fetch static IP
             if err != nil {
                 return "", err
             }

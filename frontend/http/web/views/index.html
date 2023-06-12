@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>98.css example</title>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js">
+    </script>
+    <link rel="stylesheet" href="/static/css/main.css" type="text/css">
+</head>
+
+<body>
+<h1>DDrv</h1>
+<p>Unlimited cloud storage using Discord.</p>
+
+<div style="padding-top: 3rem">
+    <table class="interactive">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>Size</th>
+            <th class="mobile">Modified</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td class="directory"><span class="icon" id="dir">📁 </span>Documents</td>
+            <td>—</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="directory"><span class="icon">📁 </span>Pictures</td>
+            <td>—</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="directory"><span class="icon">📁 </span>Music</td>
+            <td>—</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="directory"><span class="icon">📁 </span>Videos</td>
+            <td>—</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="directory"><span class="icon">📁 </span>Downloads</td>
+            <td>—</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+
+        <tr>
+            <td class="file"><span class="icon">📄 </span>file1.txt</td>
+            <td>10 KB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>document-document-document-document.docx</td>
+            <td>50 KB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>image.jpg</td>
+            <td>200 KB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>music.mp3</td>
+            <td>3 MB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file mp4"><span class="icon">📄 </span>video.mp4</td>
+            <td>500 MB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>presentation.pptx</td>
+            <td>2 MB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>spreadsheet.xlsx</td>
+            <td>1 MB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>report.pdf</td>
+            <td>600 KB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        <tr>
+            <td class="file"><span class="icon">📄 </span>notes.txt</td>
+            <td>20 KB</td>
+            <td class="mobile">5/2/2023, 1:59:42 AM</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<dialog id="playerModal">
+    <video id="player" controls>
+    </video>
+</dialog>
+
+<script>
+    document.querySelectorAll('tr').forEach(element => {
+        element.addEventListener('click', (event) => {
+            // Remove 'active' class from all rows
+            document.querySelectorAll('tr.active').forEach(activeElement => {
+                activeElement.classList.remove('active');
+            });
+
+            // Add 'active' class to clicked row
+            event.currentTarget.classList.add('active');
+        });
+    });
+
+    // Remove 'active' class when clicking outside of a row
+    document.addEventListener('click', (event) => {
+        const path = event.composedPath();
+        const row = path.find(element => element.tagName === 'TR' && element.parentElement.tagName === 'TBODY');
+        if (!row) {
+            document.querySelectorAll('tr.active').forEach(activeElement => {
+                activeElement.classList.remove('active');
+            });
+        }
+    });
+    var element = document.getElementById('dir');
+    var style = window.getComputedStyle(element, null).getPropertyValue('font-family');
+    console.log(style);
+</script>
+</body>
+</html>

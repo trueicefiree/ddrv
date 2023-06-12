@@ -2,81 +2,48 @@ package http
 
 import (
     "database/sql"
+    "embed"
     "errors"
+    "net/http"
 
     "github.com/gofiber/fiber/v2"
     "github.com/gofiber/fiber/v2/middleware/cors"
-    "github.com/gofiber/fiber/v2/middleware/helmet"
     "github.com/gofiber/fiber/v2/middleware/logger"
+    "github.com/gofiber/template/html/v2"
 
+    "github.com/forscht/ddrv/frontend/http/api"
+    "github.com/forscht/ddrv/frontend/http/web"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
-const RootDirId = "11111111-1111-1111-1111-111111111111"
+func New(db *sql.DB, mgr *ddrv.Manager) *fiber.App {
 
-type Server struct {
-    addr string
-    db   *sql.DB
-    app  *fiber.App
-    disc *ddrv.Manager
-}
-
-func (s *Server) Serv() error { return s.app.Listen(s.addr) }
-
-func New(addr string, db *sql.DB, mgr *ddrv.Manager) *Server {
-
-    app := fiber.New(PrepareConfig())
+    // Initialize fiber app
+    app := fiber.New(config())
 
     app.Use(logger.New())
     app.Use(cors.New())
-    app.Use(helmet.New())
 
-    v1 := app.Group("/api/v1")
+    // Load Web routes
+    web.Load(app)
+    // Register API routes
+    api.Load(app, db, mgr)
 
-    app.Get("/files/:id", validateParam("id"), func(ctx *fiber.Ctx) error {
-        return DownloadFile(ctx, db, mgr)
-    })
-
-    {
-        v1.Get("/directories/", func(c *fiber.Ctx) error {
-            return GetDir(c, db)
-        })
-        v1.Get("/directories/:id", validateParam("id"), func(c *fiber.Ctx) error {
-            return GetDir(c, db)
-        })
-        v1.Post("/directories/", func(c *fiber.Ctx) error {
-            return CreateDir(c, db)
-        })
-        v1.Put("/directories/:id", validateParam("id"), func(c *fiber.Ctx) error {
-            return UpdateDir(c, db)
-        })
-        v1.Delete("/directories/:id", validateParam("id"), func(c *fiber.Ctx) error {
-            return DelDir(c, db)
-        })
-
-        v1.Get("/directories/:dirId/files/:id", validateParam("id", "dirId"), func(c *fiber.Ctx) error {
-            return GetFile(c, db)
-        })
-        v1.Post("/directories/:dirId/files", validateParam("id", "dirId"), func(c *fiber.Ctx) error {
-            return CreateFile(c, db, mgr)
-        })
-        v1.Delete("/directories/:dirId/files/:id", validateParam("id", "dirId"), func(c *fiber.Ctx) error {
-            return DelFile(c, db)
-        })
-        v1.Put("/directories/:dirId/files/:id", validateParam("id", "dirId"), func(c *fiber.Ctx) error {
-            return UpdateFile(c, db)
-        })
-    }
-
-    return &Server{addr: addr, db: db, app: app, disc: mgr}
+    return app
 
 }
 
-func PrepareConfig() fiber.Config {
+//go:embed web/views/*
+var views embed.FS
+
+func config() fiber.Config {
+    engine := html.NewFileSystem(http.FS(views), ".html")
+
     return fiber.Config{
         DisablePreParseMultipartForm: true, // https://github.com/gofiber/fiber/issues/1838
         StreamRequestBody:            true,
         DisableStartupMessage:        true,
+        Views:                        engine,
         ErrorHandler: func(ctx *fiber.Ctx, err error) error {
             code := fiber.StatusInternalServerError // Status code defaults to 500
 
@@ -86,9 +53,9 @@ func PrepareConfig() fiber.Config {
                 code = e.Code
             }
             if code != fiber.StatusInternalServerError {
-                return ctx.Status(code).JSON(Response{Message: err.Error()})
+                return ctx.Status(code).JSON(api.Response{Message: err.Error()})
             }
-            return ctx.Status(code).JSON(Response{Message: "internal server error"})
+            return ctx.Status(code).JSON(api.Response{Message: "internal server error"})
         },
     }
 }

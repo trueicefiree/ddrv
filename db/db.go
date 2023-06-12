@@ -1,49 +1,54 @@
 package db
 
 import (
-	"database/sql"
-	"log"
+    "database/sql"
+    "log"
 
-	_ "github.com/lib/pq" // Import the PostgreSQL driver
+    _ "github.com/lib/pq" // Import the PostgreSQL driver
 
-	"github.com/forscht/ddrv/pkg/migrate"
+    "github.com/forscht/ddrv/internal/config"
+    "github.com/forscht/ddrv/pkg/migrate"
 )
 
-// Driver - fot now we only supports postgres
+// Driver - fot now we only support postgres
 const Driver = "postgres"
 
-// New creates a new database connection using the provided connection string.
+// New creates a new database connection using the dbUrl
 // It returns the *sql.DB object representing the connection.
-func New(connStr string, skipMigration bool) *sql.DB {
-	// next a new database connection
-	db, err := sql.Open(Driver, connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// Set a limit to the maximum number of open connections to the database.
-	// This is to prevent excessive resource use and ensure the database
-	// doesn't become overwhelmed with connections, particularly in cases
-	// where many small files are being uploaded simultaneously.
-	db.SetMaxOpenConns(100)
+func New(skipMigration bool) *sql.DB {
 
-	// Ping the database to ensure connectivity
-	if err := db.Ping(); err != nil {
-		log.Fatalf("db ping failed :%v", err)
-	}
+    // get connection url from db
+    connStr := config.C().GetDbURL()
 
-	// Perform database migrations
-	if !skipMigration {
-		if err := Migrate(db); err != nil {
-			log.Fatalf("failed to execute migration :%v", err)
-		}
-	}
+    // next a new database connection
+    db, err := sql.Open(Driver, connStr)
+    if err != nil {
+        log.Fatal(err)
+    }
+    // Set a limit to the maximum number of open connections to the database.
+    // This is to prevent excessive resource use and ensure the database
+    // doesn't become overwhelmed with connections, particularly in cases
+    // where many small files are being uploaded simultaneously.
+    db.SetMaxOpenConns(100)
 
-	return db
+    // Ping the database to ensure connectivity
+    if err := db.Ping(); err != nil {
+        log.Fatalf("db ping failed :%v", err)
+    }
+
+    // Perform database migrations
+    if !skipMigration {
+        if err := Migrate(db); err != nil {
+            log.Fatalf("failed to execute migration :%v", err)
+        }
+    }
+
+    return db
 }
 
 // Migrate performs database migrations using the provided *sql.DB connection.
 func Migrate(db *sql.DB) error {
-	m := migrate.NewMigrator(db)                  // Create a new migrator instance
-	m.TransactionMode = migrate.SingleTransaction // Set the transaction mode to single transaction
-	return m.Exec(migrate.Up, migrations...)      // Execute the migrations in the "up" direction
+    m := migrate.NewMigrator(db)                  // Create a new migrator instance
+    m.TransactionMode = migrate.SingleTransaction // Set the transaction mode to single transaction
+    return m.Exec(migrate.Up, migrations...)      // Execute the migrations in the "up" direction
 }
