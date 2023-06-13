@@ -1,7 +1,6 @@
 package http
 
 import (
-    "database/sql"
     "embed"
     "errors"
     "net/http"
@@ -13,10 +12,11 @@ import (
 
     "github.com/forscht/ddrv/frontend/http/api"
     "github.com/forscht/ddrv/frontend/http/web"
+    "github.com/forscht/ddrv/internal/ddrvfs"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
-func New(db *sql.DB, mgr *ddrv.Manager) *fiber.App {
+func New(fs ddrvfs.Fs, mgr *ddrv.Manager) *fiber.App {
 
     // Initialize fiber app
     app := fiber.New(config())
@@ -27,7 +27,7 @@ func New(db *sql.DB, mgr *ddrv.Manager) *fiber.App {
     // Load Web routes
     web.Load(app)
     // Register API routes
-    api.Load(app, db, mgr)
+    api.Load(app, fs, mgr)
 
     return app
 

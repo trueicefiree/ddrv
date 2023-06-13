@@ -10,10 +10,11 @@ import (
     "github.com/joho/godotenv"
 
     "github.com/forscht/ddrv/backend/fs"
-    "github.com/forscht/ddrv/db"
     "github.com/forscht/ddrv/frontend/ftp"
     "github.com/forscht/ddrv/frontend/http"
     "github.com/forscht/ddrv/internal/config"
+    "github.com/forscht/ddrv/internal/dataprovider/postgres"
+    "github.com/forscht/ddrv/internal/dataprovider/postgres/db"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -36,7 +37,7 @@ func main() {
     }
 
     // Create database connection
-    dbConn := db.New(false)
+    dbConn := db.New(cfg.DbURL, false)
 
     // Create a ddrv manager
     mgr, err := ddrv.NewManager(cfg.ChunkSize, strings.Split(cfg.Webhooks, ","))
@@ -46,6 +47,7 @@ func main() {
 
     // Create DFS object
     dfs := fs.New(dbConn, mgr)
+    dp := postgres.New(cfg.DbURL)
 
     errCh := make(chan error)
 
@@ -59,7 +61,7 @@ func main() {
     }
     if cfg.HTTPAddr != "" {
         go func() {
-            httpServer := http.New(dbConn, mgr)
+            httpServer := http.New(dp, mgr)
             log.Printf("starting HTTP server on : %s", cfg.HTTPAddr)
             errCh <- httpServer.Listen(cfg.HTTPAddr)
         }()

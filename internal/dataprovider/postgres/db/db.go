@@ -6,7 +6,6 @@ import (
 
     _ "github.com/lib/pq" // Import the PostgreSQL driver
 
-    "github.com/forscht/ddrv/internal/config"
     "github.com/forscht/ddrv/pkg/migrate"
 )
 
@@ -15,10 +14,7 @@ const Driver = "postgres"
 
 // New creates a new database connection using the dbUrl
 // It returns the *sql.DB object representing the connection.
-func New(skipMigration bool) *sql.DB {
-
-    // get connection url from db
-    connStr := config.C().GetDbURL()
+func New(connStr string, skipMigration bool) *sql.DB {
 
     // next a new database connection
     db, err := sql.Open(Driver, connStr)

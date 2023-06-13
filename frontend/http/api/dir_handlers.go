@@ -1,10 +1,9 @@
 package api
 
 import (
-    "database/sql"
-    "strings"
-
     "github.com/gofiber/fiber/v2"
+
+    "github.com/forscht/ddrv/internal/ddrvfs"
 )
 
 const (
@@ -15,6 +14,7 @@ const (
     StatusNotFound            = fiber.StatusNotFound
     StatusForbidden           = fiber.StatusForbidden
     StatusUnauthorized        = fiber.StatusUnauthorized
+    StatusCreated             = fiber.StatusCreated
 )
 
 const (
@@ -26,45 +26,22 @@ const (
     ErrBadUsernamePassword = "invalid username or password"
 )
 
-func GetDirHandler(db *sql.DB) fiber.Handler {
+func GetDirHandler(fs ddrvfs.Fs) fiber.Handler {
     return func(c *fiber.Ctx) error {
-        id := c.Params("id", RootDirId)
-
-        if err := db.QueryRow(`SELECT id FROM fs WHERE id=$1 AND dir=true`, id).Scan(&id); err != nil {
-            if err == sql.ErrNoRows {
-                return fiber.NewError(StatusNotFound, "directory not found")
-            }
-            return err
-        }
-        files := make([]*File, 0)
-        rows, err := db.Query(`
-				SELECT fs.id, fs.name, fs.dir, parsesize(SUM(node.size)) AS size, fs.parent, fs.mtime
-				FROM fs
-						 LEFT JOIN node ON fs.id = node.file
-				WHERE fs.parent = $1
-				GROUP BY 1, 2, 3, 5, 6
-				ORDER BY fs.dir DESC, fs.name;
-			`, id)
+        files, err := fs.GetChild(c.Params("id"))
         if err != nil {
+            if err == ddrvfs.ErrNotExist {
+                return fiber.NewError(StatusNotFound, err.Error())
+            }
             return err
         }
-        defer rows.Close()
-
-        for rows.Next() {
-            child := new(File)
-            if err := rows.Scan(&child.ID, &child.Name, &child.Dir, &child.Size, &child.Parent, &child.MTime); err != nil {
-                return err
-            }
-            files = append(files, child)
-        }
-
         return c.JSON(Response{Message: "directory retrieved", Data: files})
     }
 }
 
-func CreateDirHandler(db *sql.DB) fiber.Handler {
+func CreateDirHandler(fs ddrvfs.Fs) fiber.Handler {
     return func(c *fiber.Ctx) error {
-        file := new(File)
+        file := new(ddrvfs.File)
 
         if err := c.BodyParser(file); err != nil {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
@@ -73,50 +50,39 @@ func CreateDirHandler(db *sql.DB) fiber.Handler {
         if err := validate.Struct(file); err != nil {
             return fiber.NewError(StatusBadRequest, err.Error())
         }
-
-        err := db.QueryRow("SELECT dir FROM fs WHERE id=$1 AND dir=true", file.Parent).Scan(&file.Dir)
+        file, err := fs.Create(file.Name, string(file.Parent), true)
         if err != nil {
-            if err == sql.ErrNoRows {
-                return fiber.NewError(StatusBadRequest, "parent is not directory")
+            if err == ddrvfs.ErrExist || err == ddrvfs.ErrInvalidParent {
+                return fiber.NewError(StatusBadRequest, err.Error())
             }
             return err
         }
-        if err := db.QueryRow("INSERT INTO fs (name,dir,parent) VALUES($1,$2,$3) RETURNING id, dir, mtime", file.Name, true, file.Parent).
-            Scan(&file.ID, &file.Dir, &file.MTime); err != nil {
-            if strings.Contains(err.Error(), "fs_name_parent_key") {
-                return fiber.NewError(StatusBadRequest, ErrExist)
-            }
-            return err
-        }
-        return c.JSON(Response{Message: "directory created", Data: file})
+        return c.Status(StatusCreated).
+            JSON(Response{Message: "directory created", Data: file})
     }
 }
 
-func UpdateDirHandler(db *sql.DB) fiber.Handler {
+func UpdateDirHandler(fs ddrvfs.Fs) fiber.Handler {
     return func(c *fiber.Ctx) error {
         id := c.Params("id")
 
-        if id == RootDirId {
-            return fiber.NewError(StatusForbidden, ErrChangeRootDir)
-        }
+        f := new(ddrvfs.File)
 
-        file := new(File)
-
-        if err := c.BodyParser(file); err != nil {
+        if err := c.BodyParser(f); err != nil {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
         }
 
-        if err := validate.Struct(file); err != nil {
+        if err := validate.Struct(f); err != nil {
             return fiber.NewError(StatusBadRequest, err.Error())
         }
 
-        if err := db.QueryRow("UPDATE fs SET name=$1, parent=$2, mtime=NOW() WHERE id=$3 AND dir=true RETURNING id,dir,mtime", file.Name, file.Parent, id).
-            Scan(&file.ID, &file.Dir, &file.MTime); err != nil {
-            if err == sql.ErrNoRows {
-                return fiber.NewError(StatusNotFound, ErrNotFound)
+        file, err := fs.Update(id, f.Name, string(f.Parent), true)
+        if err != nil {
+            if err == ddrvfs.ErrNotExist {
+                return fiber.NewError(StatusNotFound, err.Error())
             }
-            if strings.Contains(err.Error(), "fs_name_parent_key") {
-                return fiber.NewError(StatusBadRequest, ErrExist)
+            if err == ddrvfs.ErrExist {
+                return fiber.NewError(StatusBadRequest, err.Error())
             }
             return err
         }
@@ -125,20 +91,18 @@ func UpdateDirHandler(db *sql.DB) fiber.Handler {
     }
 }
 
-func DelDirHandler(db *sql.DB) fiber.Handler {
+func DelDirHandler(fs ddrvfs.Fs) fiber.Handler {
     return func(c *fiber.Ctx) error {
         id := c.Params("id")
 
-        if id == RootDirId {
-            return fiber.NewError(StatusForbidden, ErrChangeRootDir)
-        }
-        res, err := db.Exec("DELETE FROM fs WHERE id=$1 AND dir=true", id)
-        if err != nil {
+        if err := fs.Delete(id); err != nil {
+            if err == ddrvfs.ErrPermission {
+                return fiber.NewError(StatusForbidden, err.Error())
+            }
+            if err == ddrvfs.ErrNotExist {
+                return fiber.NewError(StatusNotFound, err.Error())
+            }
             return err
-        }
-        rAffected, _ := res.RowsAffected()
-        if rAffected == 0 {
-            return fiber.NewError(StatusNotFound, ErrNotFound)
         }
         return c.JSON(Response{Message: "directory deleted"})
     }

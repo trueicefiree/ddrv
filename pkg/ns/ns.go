@@ -26,3 +26,6 @@ func (ns *NullString) Value() (driver.Value, error) {
     }
     return string(*ns), nil
 }
+
+// how can I str := hello
+// str.(NullString)
