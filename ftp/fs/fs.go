@@ -1,6 +1,7 @@
 package fs
 
 import (
+    "errors"
     "io"
     "os"
     "path/filepath"
@@ -8,9 +9,16 @@ import (
 
     "github.com/spf13/afero"
 
-    "github.com/forscht/ddrv/internal/dataprovider"
-    "github.com/forscht/ddrv/internal/fslog"
+    dp "github.com/forscht/ddrv/dataprovider"
     "github.com/forscht/ddrv/pkg/ddrv"
+)
+
+var (
+    ErrIsDir        = errors.New("is a directory")
+    ErrIsNotDir     = errors.New("not a directory")
+    ErrNotSupported = errors.New("fs doesn't support this operation")
+    ErrInvalidSeek  = errors.New("invalid seek offset")
+    ErrReadOnly     = os.ErrPermission
 )
 
 type Fs struct {
@@ -19,25 +27,25 @@ type Fs struct {
 }
 
 func New(mgr *ddrv.Manager) afero.Fs {
-    return fslog.LoadFS(&Fs{mgr: mgr})
+    return LoadFS(&Fs{mgr: mgr})
 }
 
-func (fs *Fs) Name() string { return "Fs" }
+func (fs *Fs) Name() string { return "LogFs" }
 
 func (fs *Fs) Chown(_ string, _, _ int) error { return ErrNotSupported }
 
 func (fs *Fs) Chmod(_ string, _ os.FileMode) error { return ErrNotSupported }
 
 func (fs *Fs) Chtimes(name string, _ time.Time, mtime time.Time) error {
-    err := dataprovider.Get().ChMTime(name, mtime)
+    err := dp.Get().ChMTime(name, mtime)
     return err
 }
 
 func (fs *Fs) Create(name string) (afero.File, error) {
     if fs.ro {
-        return nil, PathError("create", name, ErrReadOnly)
+        return nil, ErrReadOnly
     }
-    if err := dataprovider.Get().Touch(name); err != nil {
+    if err := dp.Get().Touch(name); err != nil {
         return nil, err
     }
     return fs.OpenFile(name, os.O_WRONLY, 0666)
@@ -45,31 +53,31 @@ func (fs *Fs) Create(name string) (afero.File, error) {
 
 func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
     if fs.ro {
-        return PathError("mkdir", name, ErrReadOnly)
+        return ErrReadOnly
     }
     parent, _ := filepath.Split(name)
-    file, err := dataprovider.Get().Stat(parent)
+    file, err := dp.Get().Stat(parent)
     if err != nil {
         return err
     }
     if !file.Dir {
-        return PathError("mkdir", name, ErrIsNotDir)
+        return ErrReadOnly
     }
-    err = dataprovider.Get().Mkdir(name)
+    err = dp.Get().Mkdir(name)
     return err
 }
 
 func (fs *Fs) MkdirAll(path string, _ os.FileMode) error {
     if fs.ro {
-        return PathError("mkdirall", path, ErrReadOnly)
+        return ErrReadOnly
     }
-    err := dataprovider.Get().Mkdir(path)
+    err := dp.Get().Mkdir(path)
     return err
 }
 
 // ReadDir ClientDriverExtensionFileList for FTPServer
 func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
-    files, err := dataprovider.Get().Ls(name, 0, 0)
+    files, err := dp.Get().Ls(name, 0, 0)
     if err != nil {
         return nil, err
     }
@@ -86,7 +94,7 @@ func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
-    f, err := dataprovider.Get().Stat(name)
+    f, err := dp.Get().Stat(name)
     if err != nil {
         return nil, err
     }
@@ -94,7 +102,7 @@ func (fs *Fs) Open(name string) (afero.File, error) {
     file.flag = os.O_RDONLY
     file.mgr = fs.mgr
     if !file.dir {
-        file.data, err = dataprovider.Get().GetFileNodes(file.id)
+        file.data, err = dp.Get().GetFileNodes(file.id)
         if err != nil {
             return nil, err
         }
@@ -107,16 +115,16 @@ func (fs *Fs) Open(name string) (afero.File, error) {
 func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error) {
 
     if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC) {
-        return nil, PathError("open", name, ErrFlagNotSupported)
+        return nil, ErrReadOnly
     }
 
     // If a file system is read only, only allow a readonly flag
     if fs.ro && CheckFlag(flag, os.O_RDONLY) {
-        return nil, PathError("open", name, ErrReadOnly)
+        return nil, ErrReadOnly
     }
 
-    f, err := dataprovider.Get().Stat(name)
-    if err != nil && err == dataprovider.ErrNotExist {
+    f, err := dp.Get().Stat(name)
+    if err != nil && err == dp.ErrNotExist {
         // If record not found just create new file and return
         if CheckFlag(os.O_CREATE, flag) {
             return fs.Create(name)
@@ -130,13 +138,13 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
     file.mgr = fs.mgr
 
     if CheckFlag(os.O_TRUNC, flag) {
-        if err = dataprovider.Get().DeleteFileNodes(file.id); err != nil {
+        if err = dp.Get().DeleteFileNodes(file.id); err != nil {
             return nil, err
         }
     }
 
     if !file.dir {
-        file.data, err = dataprovider.Get().GetFileNodes(file.id)
+        file.data, err = dp.Get().GetFileNodes(file.id)
         if err != nil {
             return nil, err
         }
@@ -147,46 +155,42 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
 
 func (fs *Fs) Remove(name string) error {
     if fs.ro {
-        return PathError("remove", name, ErrReadOnly)
+        return ErrReadOnly
     }
     parent, _ := filepath.Split(name)
-    _, err := dataprovider.Get().Stat(parent)
+    _, err := dp.Get().Stat(parent)
     if err != nil {
         return err
     }
-    return dataprovider.Get().Rm(name)
+    return dp.Get().Rm(name)
 }
 
 func (fs *Fs) RemoveAll(path string) error {
     if fs.ro {
-        return PathError("removeall", path, ErrReadOnly)
+        return ErrReadOnly
     }
-    return dataprovider.Get().Rm(path)
+    return dp.Get().Rm(path)
 }
 
 func (fs *Fs) Rename(oldname, newname string) error {
     if fs.ro {
-        return PathError("rename", newname, ErrReadOnly)
+        return ErrReadOnly
     }
-    return dataprovider.Get().Mv(oldname, newname)
+    return dp.Get().Mv(oldname, newname)
 }
 
 func (fs *Fs) Stat(name string) (os.FileInfo, error) {
-    f, err := dataprovider.Get().Stat(name)
+    f, err := dp.Get().Stat(name)
     if err != nil {
         return nil, err
     }
     return convertToAferoFile(f).Stat()
 }
 
-func PathError(op string, path string, err error) *os.PathError {
-    return &os.PathError{Op: op, Path: path, Err: err}
-}
-
 func CheckFlag(flag int, allowedFlags int) bool {
     return flag == (flag & allowedFlags)
 }
 
-func convertToAferoFile(df *dataprovider.File) *File {
+func convertToAferoFile(df *dp.File) *File {
     return &File{id: df.ID, name: df.Name, dir: df.Dir, size: df.Size, mtime: df.MTime}
 }

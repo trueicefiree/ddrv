@@ -10,8 +10,8 @@ import (
     "github.com/gofiber/fiber/v2/middleware/logger"
     "github.com/gofiber/template/html/v2"
 
-    api2 "github.com/forscht/ddrv/internal/http/api"
-    "github.com/forscht/ddrv/internal/http/web"
+    "github.com/forscht/ddrv/http/api"
+    "github.com/forscht/ddrv/http/web"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -26,7 +26,7 @@ func New(mgr *ddrv.Manager) *fiber.App {
     // Load Web routes
     web.Load(app)
     // Register API routes
-    api2.Load(app, mgr)
+    api.Load(app, mgr)
 
     return app
 
@@ -52,9 +52,9 @@ func config() fiber.Config {
                 code = e.Code
             }
             if code != fiber.StatusInternalServerError {
-                return ctx.Status(code).JSON(api2.Response{Message: err.Error()})
+                return ctx.Status(code).JSON(api.Response{Message: err.Error()})
             }
-            return ctx.Status(code).JSON(api2.Response{Message: "internal server error"})
+            return ctx.Status(code).JSON(api.Response{Message: "internal server error"})
         },
     }
 }

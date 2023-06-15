@@ -11,7 +11,7 @@ import (
     "github.com/fclairamb/ftpserverlib"
     "github.com/spf13/afero"
 
-    "github.com/forscht/ddrv/internal/config"
+    "github.com/forscht/ddrv/config"
 )
 
 const IPResolveURL = "https://ipinfo.io/ip"

@@ -9,11 +9,11 @@ import (
     "github.com/alecthomas/kong"
     "github.com/joho/godotenv"
 
-    "github.com/forscht/ddrv/internal/config"
-    "github.com/forscht/ddrv/internal/dataprovider"
-    "github.com/forscht/ddrv/internal/fs"
-    "github.com/forscht/ddrv/internal/ftp"
-    "github.com/forscht/ddrv/internal/http"
+    "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/dataprovider"
+    "github.com/forscht/ddrv/ftp"
+    "github.com/forscht/ddrv/ftp/fs"
+    "github.com/forscht/ddrv/http"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 

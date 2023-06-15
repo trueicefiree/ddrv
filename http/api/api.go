@@ -3,7 +3,7 @@ package api
 import (
     "github.com/gofiber/fiber/v2"
 
-    "github.com/forscht/ddrv/internal/config"
+    "github.com/forscht/ddrv/config"
     "github.com/forscht/ddrv/pkg/ddrv"
     "github.com/forscht/ddrv/pkg/validator"
 )

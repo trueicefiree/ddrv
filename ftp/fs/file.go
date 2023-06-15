@@ -1,13 +1,12 @@
 package fs
 
 import (
-    "fmt"
     "io"
     "os"
     "path/filepath"
     "time"
 
-    "github.com/forscht/ddrv/internal/dataprovider"
+    dp "github.com/forscht/ddrv/dataprovider"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -20,7 +19,7 @@ type File struct {
 
     flag         int
     off          int64
-    data         []*dataprovider.Node
+    data         []*dp.Node
     readDirCount int
 
     mgr         *ddrv.Manager
@@ -72,7 +71,7 @@ func (f *File) Readdir(count int) ([]os.FileInfo, error) {
         return nil, ErrIsNotDir
     }
 
-    files, err := dataprovider.Get().Ls(f.name, count, f.readDirCount)
+    files, err := dp.Get().Ls(f.name, count, f.readDirCount)
     if err != nil {
         return nil, err
     }
@@ -107,7 +106,6 @@ func (f *File) Read(p []byte) (n int, err error) {
 }
 
 func (f *File) ReadAt(p []byte, off int64) (n int, err error) {
-    fmt.Println("Read")
     if f.IsDir() {
         return 0, ErrIsDir
     }
@@ -135,7 +133,7 @@ func (f *File) Write(p []byte) (int, error) {
 
     if f.streamWrite == nil {
         if CheckFlag(os.O_APPEND, f.flag) {
-            if err := dataprovider.Get().DeleteFileNodes(f.id); err != nil {
+            if err := dp.Get().DeleteFileNodes(f.id); err != nil {
                 return 0, err
             }
         }
@@ -152,7 +150,7 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
     if f.IsDir() {
         return 0, ErrIsDir
     }
-    fmt.Println("Seek")
+
     if !CheckFlag(os.O_RDONLY, f.flag) {
         return 0, ErrNotSupported
     }
@@ -193,15 +191,15 @@ func (f *File) Close() error {
             return err
         }
         // Special case, some FTP clients try to create blank file
-        // and then try to write it to FTP, we can ignore nodes with 0 bytes
+        // and then try to write it to FTP, we can ignore chunks with 0 bytes
         if len(f.chunks) == 1 && f.chunks[0].Size == 0 {
             return nil
         }
-        nodes := make([]*dataprovider.Node, len(f.chunks))
+        nodes := make([]*dp.Node, len(f.chunks))
         for i, chunk := range f.chunks {
             nodes[i] = convertToNode(chunk)
         }
-        err := dataprovider.Get().CreateFileNodes(f.id, nodes)
+        err := dp.Get().CreateFileNodes(f.id, nodes)
         if err != nil {
             return err
         }
@@ -218,9 +216,9 @@ func (f *File) Close() error {
 }
 
 func (f *File) openReadStream(startAt int64) error {
-    chunks := make([]ddrv.Attachment, 0)
-    for _, node := range f.data {
-        chunks = append(chunks, ddrv.Attachment{URL: node.URL, Size: node.Size})
+    chunks := make([]ddrv.Attachment, len(f.data))
+    for i, node := range f.data {
+        chunks[i] = ddrv.Attachment{URL: node.URL, Size: node.Size}
     }
 
     stream, err := f.mgr.NewReader(chunks, startAt)
@@ -231,6 +229,6 @@ func (f *File) openReadStream(startAt int64) error {
     return nil
 }
 
-func convertToNode(chunk *ddrv.Attachment) *dataprovider.Node {
-    return &dataprovider.Node{URL: chunk.URL, Size: chunk.Size}
+func convertToNode(chunk *ddrv.Attachment) *dp.Node {
+    return &dp.Node{URL: chunk.URL, Size: chunk.Size}
 }

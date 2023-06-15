@@ -5,7 +5,7 @@ import (
     "strings"
     "time"
 
-    "github.com/forscht/ddrv/internal/dataprovider/pgsql"
+    "github.com/forscht/ddrv/dataprovider/db/pgsql"
 )
 
 const RootDirId = "11111111-1111-1111-1111-111111111111"

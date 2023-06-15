@@ -8,7 +8,7 @@ import (
 
     "github.com/gofiber/fiber/v2"
 
-    dp "github.com/forscht/ddrv/internal/dataprovider"
+    "github.com/forscht/ddrv/dataprovider"
     "github.com/forscht/ddrv/pkg/bufcp"
     "github.com/forscht/ddrv/pkg/ddrv"
     "github.com/forscht/ddrv/pkg/httprange"
@@ -21,9 +21,9 @@ func GetFileHandler() fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        file, err := dp.Get().Get(id, dirId)
+        file, err := dataprovider.Get().Get(id, dirId)
         if err != nil {
-            if err == dp.ErrNotExist {
+            if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
             return err
@@ -42,9 +42,9 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
         }
 
-        file, err := dp.Get().Create(fileHeader.Filename, dirId, false)
+        file, err := dataprovider.Get().Create(fileHeader.Filename, dirId, false)
         if err != nil {
-            if err == dp.ErrExist || err == dp.ErrInvalidParent {
+            if err == dataprovider.ErrExist || err == dataprovider.ErrInvalidParent {
                 return fiber.NewError(StatusBadRequest, err.Error())
             }
             return err
@@ -53,10 +53,10 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
         if err != nil {
             return err
         }
-        nodes := make([]*dp.Node, 0)
+        nodes := make([]*dataprovider.Node, 0)
         dwriter := mgr.NewWriter(func(a *ddrv.Attachment) {
             file.Size += int64(a.Size)
-            nodes = append(nodes, &dp.Node{URL: a.URL, Size: a.Size})
+            nodes = append(nodes, &dataprovider.Node{URL: a.URL, Size: a.Size})
         })
 
         _, err = io.Copy(dwriter, br)
@@ -64,7 +64,7 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
             return err
         }
 
-        if err := dp.Get().CreateFileNodes(file.ID, nodes); err != nil {
+        if err := dataprovider.Get().CreateFileNodes(file.ID, nodes); err != nil {
             return err
         }
 
@@ -78,9 +78,9 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        f, err := dp.Get().Get(id, dirId)
+        f, err := dataprovider.Get().Get(id, dirId)
         if err != nil {
-            if err == dp.ErrNotExist {
+            if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
             return err
@@ -96,7 +96,7 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
         // Set the Content-Type header
         c.Response().Header.SetContentType(mimeType)
 
-        nodes, err := dp.Get().GetFileNodes(id)
+        nodes, err := dataprovider.Get().GetFileNodes(id)
         if err != nil {
             return err
         }
@@ -147,7 +147,7 @@ func UpdateFileHandler() fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        file := new(dp.File)
+        file := new(dataprovider.File)
 
         if err := c.BodyParser(file); err != nil {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
@@ -157,12 +157,12 @@ func UpdateFileHandler() fiber.Handler {
             return fiber.NewError(StatusBadRequest, err.Error())
         }
 
-        file, err := dp.Get().Update(id, dirId, file)
+        file, err := dataprovider.Get().Update(id, dirId, file)
         if err != nil {
-            if err == dp.ErrNotExist {
+            if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
-            if err == dp.ErrExist {
+            if err == dataprovider.ErrExist {
                 return fiber.NewError(StatusBadRequest, err.Error())
             }
             return err
@@ -177,8 +177,8 @@ func DelFileHandler() fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        if err := dp.Get().Delete(id, dirId); err != nil {
-            if err == dp.ErrNotExist {
+        if err := dataprovider.Get().Delete(id, dirId); err != nil {
+            if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
         }
