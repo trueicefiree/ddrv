@@ -124,6 +124,7 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
     } else if err != nil {
         return nil, err
     }
+
     file := convertToAferoFile(f)
     file.flag = flag
     file.mgr = fs.mgr

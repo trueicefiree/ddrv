@@ -1,6 +1,7 @@
 package fs
 
 import (
+    "fmt"
     "io"
     "os"
     "path/filepath"
@@ -106,6 +107,7 @@ func (f *File) Read(p []byte) (n int, err error) {
 }
 
 func (f *File) ReadAt(p []byte, off int64) (n int, err error) {
+    fmt.Println("Read")
     if f.IsDir() {
         return 0, ErrIsDir
     }
@@ -150,7 +152,7 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
     if f.IsDir() {
         return 0, ErrIsDir
     }
-
+    fmt.Println("Seek")
     if !CheckFlag(os.O_RDONLY, f.flag) {
         return 0, ErrNotSupported
     }
@@ -220,6 +222,7 @@ func (f *File) openReadStream(startAt int64) error {
     for _, node := range f.data {
         chunks = append(chunks, ddrv.Attachment{URL: node.URL, Size: node.Size})
     }
+
     stream, err := f.mgr.NewReader(chunks, startAt)
     if err != nil {
         return err

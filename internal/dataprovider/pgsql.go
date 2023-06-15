@@ -145,7 +145,7 @@ func (pfs *PGFs) Delete(id, parent string) error {
 }
 
 func (pfs *PGFs) GetFileNodes(id string) ([]*Node, error) {
-    chunks := make([]*Node, 0)
+    nodes := make([]*Node, 0)
     rows, err := pfs.db.Query("SELECT url, size FROM node where file=$1", id)
     if err != nil {
         return nil, err
@@ -158,10 +158,10 @@ func (pfs *PGFs) GetFileNodes(id string) ([]*Node, error) {
         if err != nil {
             return nil, err
         }
-        chunks = append(chunks, node)
+        nodes = append(nodes, node)
     }
 
-    return nil, nil
+    return nodes, nil
 }
 
 func (pfs *PGFs) CreateFileNodes(fid string, nodes []*Node) error {
