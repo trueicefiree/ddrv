@@ -8,7 +8,7 @@ import (
 
     "github.com/gofiber/fiber/v2"
 
-    "github.com/forscht/ddrv/internal/ddrvfs"
+    dp "github.com/forscht/ddrv/internal/dataprovider"
     "github.com/forscht/ddrv/pkg/bufcp"
     "github.com/forscht/ddrv/pkg/ddrv"
     "github.com/forscht/ddrv/pkg/httprange"
@@ -16,13 +16,14 @@ import (
 
 const FileDownloadBufSize = 1024 * 100 // 100KB
 
-func GetFileHandler(fs ddrvfs.Fs) fiber.Handler {
+func GetFileHandler() fiber.Handler {
     return func(c *fiber.Ctx) error {
         id := c.Params("id")
+        dirId := c.Params("dirId")
 
-        file, err := fs.Get(id, false)
+        file, err := dp.Get().Get(id, dirId)
         if err != nil {
-            if err == ddrvfs.ErrNotExist {
+            if err == dp.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
             return err
@@ -32,7 +33,7 @@ func GetFileHandler(fs ddrvfs.Fs) fiber.Handler {
     }
 }
 
-func CreateFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
+func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
     return func(c *fiber.Ctx) error {
         dirId := c.Params("dirId")
 
@@ -41,9 +42,9 @@ func CreateFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
         }
 
-        file, err := fs.Create(fileHeader.Filename, dirId, false)
+        file, err := dp.Get().Create(fileHeader.Filename, dirId, false)
         if err != nil {
-            if err == ddrvfs.ErrExist || err == ddrvfs.ErrInvalidParent {
+            if err == dp.ErrExist || err == dp.ErrInvalidParent {
                 return fiber.NewError(StatusBadRequest, err.Error())
             }
             return err
@@ -52,10 +53,10 @@ func CreateFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
         if err != nil {
             return err
         }
-        nodes := make([]*ddrvfs.Node, 0)
+        nodes := make([]*dp.Node, 0)
         dwriter := mgr.NewWriter(func(a *ddrv.Attachment) {
-            file.Size += a.Size
-            nodes = append(nodes, &ddrvfs.Node{URL: a.URL, Size: a.Size})
+            file.Size += int64(a.Size)
+            nodes = append(nodes, &dp.Node{URL: a.URL, Size: a.Size})
         })
 
         _, err = io.Copy(dwriter, br)
@@ -63,7 +64,7 @@ func CreateFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
             return err
         }
 
-        if err := fs.CreateFileNodes(file.ID, nodes); err != nil {
+        if err := dp.Get().CreateFileNodes(file.ID, nodes); err != nil {
             return err
         }
 
@@ -72,13 +73,14 @@ func CreateFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
     }
 }
 
-func DownloadFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
+func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
     return func(c *fiber.Ctx) error {
         id := c.Params("id")
+        dirId := c.Params("dirId")
 
-        f, err := fs.Get(id, false)
+        f, err := dp.Get().Get(id, dirId)
         if err != nil {
-            if err == ddrvfs.ErrNotExist {
+            if err == dp.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
             return err
@@ -94,7 +96,7 @@ func DownloadFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
         // Set the Content-Type header
         c.Response().Header.SetContentType(mimeType)
 
-        nodes, err := fs.GetFileNodes(id)
+        nodes, err := dp.Get().GetFileNodes(id)
         if err != nil {
             return err
         }
@@ -140,26 +142,27 @@ func DownloadFileHandler(fs ddrvfs.Fs, mgr *ddrv.Manager) fiber.Handler {
     }
 }
 
-func UpdateFileHandler(fs ddrvfs.Fs) fiber.Handler {
+func UpdateFileHandler() fiber.Handler {
     return func(c *fiber.Ctx) error {
         id := c.Params("id")
+        dirId := c.Params("dirId")
 
-        f := new(ddrvfs.File)
+        file := new(dp.File)
 
-        if err := c.BodyParser(f); err != nil {
+        if err := c.BodyParser(file); err != nil {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
         }
 
-        if err := validate.Struct(f); err != nil {
+        if err := validate.Struct(file); err != nil {
             return fiber.NewError(StatusBadRequest, err.Error())
         }
 
-        file, err := fs.Update(id, f.Name, string(f.Parent), false)
+        file, err := dp.Get().Update(id, dirId, file)
         if err != nil {
-            if err == ddrvfs.ErrNotExist {
+            if err == dp.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
-            if err == ddrvfs.ErrExist {
+            if err == dp.ErrExist {
                 return fiber.NewError(StatusBadRequest, err.Error())
             }
             return err
@@ -169,12 +172,13 @@ func UpdateFileHandler(fs ddrvfs.Fs) fiber.Handler {
     }
 }
 
-func DelFileHandler(fs ddrvfs.Fs) fiber.Handler {
+func DelFileHandler() fiber.Handler {
     return func(c *fiber.Ctx) error {
         id := c.Params("id")
+        dirId := c.Params("dirId")
 
-        if err := fs.Delete(id); err != nil {
-            if err == ddrvfs.ErrNotExist {
+        if err := dp.Get().Delete(id, dirId); err != nil {
+            if err == dp.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }
         }

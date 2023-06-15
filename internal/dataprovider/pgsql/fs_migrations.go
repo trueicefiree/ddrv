@@ -1,4 +1,4 @@
-package db
+package pgsql
 
 var fsTable = `
 CREATE TABLE IF NOT EXISTS fs

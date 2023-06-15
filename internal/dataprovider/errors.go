@@ -1,4 +1,4 @@
-package ddrvfs
+package dataprovider
 
 import "errors"
 

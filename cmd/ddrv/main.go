@@ -9,12 +9,11 @@ import (
     "github.com/alecthomas/kong"
     "github.com/joho/godotenv"
 
-    "github.com/forscht/ddrv/backend/fs"
-    "github.com/forscht/ddrv/frontend/ftp"
-    "github.com/forscht/ddrv/frontend/http"
     "github.com/forscht/ddrv/internal/config"
-    "github.com/forscht/ddrv/internal/dataprovider/postgres"
-    "github.com/forscht/ddrv/internal/dataprovider/postgres/db"
+    "github.com/forscht/ddrv/internal/dataprovider"
+    "github.com/forscht/ddrv/internal/fs"
+    "github.com/forscht/ddrv/internal/ftp"
+    "github.com/forscht/ddrv/internal/http"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -36,9 +35,6 @@ func main() {
         log.Fatalf("invalid chunkSize %d", cfg.ChunkSize)
     }
 
-    // Create database connection
-    dbConn := db.New(cfg.DbURL, false)
-
     // Create a ddrv manager
     mgr, err := ddrv.NewManager(cfg.ChunkSize, strings.Split(cfg.Webhooks, ","))
     if err != nil {
@@ -46,8 +42,10 @@ func main() {
     }
 
     // Create DFS object
-    dfs := fs.New(dbConn, mgr)
-    dp := postgres.New(cfg.DbURL)
+    dfs := fs.New(mgr)
+
+    // Load data provider
+    dataprovider.Load()
 
     errCh := make(chan error)
 
@@ -61,7 +59,7 @@ func main() {
     }
     if cfg.HTTPAddr != "" {
         go func() {
-            httpServer := http.New(dp, mgr)
+            httpServer := http.New(mgr)
             log.Printf("starting HTTP server on : %s", cfg.HTTPAddr)
             errCh <- httpServer.Listen(cfg.HTTPAddr)
         }()

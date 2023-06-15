@@ -1,4 +1,4 @@
-package db
+package pgsql
 
 import (
     "github.com/forscht/ddrv/pkg/migrate"

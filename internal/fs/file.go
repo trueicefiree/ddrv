@@ -1,12 +1,12 @@
 package fs
 
 import (
-    "database/sql"
     "io"
     "os"
     "path/filepath"
     "time"
 
+    "github.com/forscht/ddrv/internal/dataprovider"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -19,10 +19,9 @@ type File struct {
 
     flag         int
     off          int64
-    data         []Node
-    readDirCount int64
+    data         []*dataprovider.Node
+    readDirCount int
 
-    db          *sql.DB
     mgr         *ddrv.Manager
     chunks      []*ddrv.Attachment
     streamWrite io.WriteCloser
@@ -72,30 +71,18 @@ func (f *File) Readdir(count int) ([]os.FileInfo, error) {
         return nil, ErrIsNotDir
     }
 
-    query := "SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name"
-    if count > 0 {
-        query += " LIMIT $2 OFFSET $3"
-    }
-
-    rows, err := f.db.Query(query, f.name)
+    files, err := dataprovider.Get().Ls(f.name, count, f.readDirCount)
     if err != nil {
         return nil, err
     }
-    defer rows.Close()
-
-    entries := make([]os.FileInfo, 0)
-    for rows.Next() {
-        file := new(File)
-        if err := rows.Scan(&file.id, &file.name, &file.dir, &file.size, &file.mtime); err != nil {
-            return nil, err
-        }
-        stat, _ := file.Stat()
-        entries = append(entries, stat)
+    entries := make([]os.FileInfo, len(files))
+    for i, file := range files {
+        entries[i] = convertToAferoFile(file)
     }
     if len(entries) == 0 {
         err = io.EOF
     }
-    f.readDirCount += int64(len(entries))
+    f.readDirCount += len(entries)
 
     return entries, err
 }
@@ -146,7 +133,7 @@ func (f *File) Write(p []byte) (int, error) {
 
     if f.streamWrite == nil {
         if CheckFlag(os.O_APPEND, f.flag) {
-            if _, err := f.db.Exec("DELETE FROM node WHERE file=$1", f.id); err != nil {
+            if err := dataprovider.Get().DeleteFileNodes(f.id); err != nil {
                 return 0, err
             }
         }
@@ -208,33 +195,12 @@ func (f *File) Close() error {
         if len(f.chunks) == 1 && f.chunks[0].Size == 0 {
             return nil
         }
-
-        tx, err := f.db.Begin()
+        nodes := make([]*dataprovider.Node, len(f.chunks))
+        for i, chunk := range f.chunks {
+            nodes[i] = convertToNode(chunk)
+        }
+        err := dataprovider.Get().CreateFileNodes(f.id, nodes)
         if err != nil {
-            return err
-        }
-        // Defer a rollback in case anything goes wrong
-        defer tx.Rollback()
-
-        // Prepare a statement within the transaction
-        stmt, err := tx.Prepare(`INSERT INTO node (file, url, size) VALUES ($1, $2, $3)`)
-        if err != nil {
-            return err
-        }
-        defer stmt.Close() // Prepared statements take up server resources, so ensure they're closed when done.
-
-        // Insert each node
-        for _, chunk := range f.chunks {
-            if _, err := stmt.Exec(f.id, chunk.URL, chunk.Size); err != nil {
-                return err
-            }
-        }
-        // Update mtime every time something is written on file
-        if _, err := tx.Exec("UPDATE fs SET mtime = NOW() WHERE id=$1", f.id); err != nil {
-            return err
-        }
-        // If everything went well, commit the transaction
-        if err := tx.Commit(); err != nil {
             return err
         }
         f.streamWrite = nil
@@ -252,7 +218,7 @@ func (f *File) Close() error {
 func (f *File) openReadStream(startAt int64) error {
     chunks := make([]ddrv.Attachment, 0)
     for _, node := range f.data {
-        chunks = append(chunks, ddrv.Attachment{URL: node.url, Size: node.size})
+        chunks = append(chunks, ddrv.Attachment{URL: node.URL, Size: node.Size})
     }
     stream, err := f.mgr.NewReader(chunks, startAt)
     if err != nil {
@@ -260,4 +226,8 @@ func (f *File) openReadStream(startAt int64) error {
     }
     f.streamRead = stream
     return nil
+}
+
+func convertToNode(chunk *ddrv.Attachment) *dataprovider.Node {
+    return &dataprovider.Node{URL: chunk.URL, Size: chunk.Size}
 }
