@@ -215,11 +215,13 @@ func (pfs *PGFs) Stat(name string) (*File, error) {
 }
 
 func (pfs *PGFs) Ls(name string, limit int, offset int) ([]*File, error) {
-    query := "SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name"
+    var rows *sql.Rows
+    var err error
     if limit > 0 {
-        query += " limit $3 offset $4"
+        rows, err = pfs.db.Query("SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name limit $2 offset $3", name, limit, offset)
+    } else {
+        rows, err = pfs.db.Query("SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name", name)
     }
-    rows, err := pfs.db.Query(query, name, limit, offset)
     if err != nil {
         return nil, err
     }
@@ -228,7 +230,7 @@ func (pfs *PGFs) Ls(name string, limit int, offset int) ([]*File, error) {
     entries := make([]*File, 0)
     for rows.Next() {
         file := new(File)
-        if err := rows.Scan(&file.ID, &file.Name, &file.Dir, &file.Size, &file.MTime); err != nil {
+        if err = rows.Scan(&file.ID, &file.Name, &file.Dir, &file.Size, &file.MTime); err != nil {
             return nil, err
         }
         entries = append(entries, file)
