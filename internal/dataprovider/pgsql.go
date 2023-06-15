@@ -204,7 +204,7 @@ func (pfs *PGFs) DeleteFileNodes(fid string) error {
 func (pfs *PGFs) Stat(name string) (*File, error) {
     file := new(File)
     err := pfs.db.QueryRow("SELECT id,name,dir,size,mtime FROM stat($1)", name).
-        Scan(&file.Name, &file.Dir, &file.Size, &file.MTime)
+        Scan(&file.ID, &file.Name, &file.Dir, &file.Size, &file.MTime)
     if err != nil {
         if err == sql.ErrNoRows {
             return nil, ErrNotExist
