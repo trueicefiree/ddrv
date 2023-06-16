@@ -2,7 +2,6 @@ package fs
 
 import (
     "errors"
-    "io"
     "os"
     "path/filepath"
     "time"
@@ -14,10 +13,10 @@ import (
 )
 
 var (
-    ErrIsDir        = errors.New("is a directory")
-    ErrIsNotDir     = errors.New("not a directory")
-    ErrNotSupported = errors.New("fs doesn't support this operation")
-    ErrInvalidSeek  = errors.New("invalid seek offset")
+    ErrIsDir        = &os.PathError{Err: errors.New("is a directory")}
+    ErrIsNotDir     = &os.PathError{Err: errors.New("is not a directory")}
+    ErrNotSupported = &os.PathError{Err: errors.New("fs doesn't support this operation")}
+    ErrInvalidSeek  = &os.PathError{Err: errors.New("invalid seek offset")}
     ErrReadOnly     = os.ErrPermission
 )
 
@@ -50,7 +49,7 @@ func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
         return err
     }
     if !file.Dir {
-        return ErrReadOnly
+        return ErrIsNotDir
     }
     err = dp.Mkdir(name)
     return err
@@ -59,24 +58,6 @@ func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
 func (fs *Fs) MkdirAll(path string, _ os.FileMode) error {
     err := dp.Mkdir(path)
     return err
-}
-
-// ReadDir ClientDriverExtensionFileList for FTPServer
-func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
-    files, err := dp.Ls(name, 0, 0)
-    if err != nil {
-        return nil, err
-    }
-    entries := make([]os.FileInfo, len(files))
-    for i, file := range files {
-        f := convertToAferoFile(file)
-        entries[i], _ = f.Stat()
-    }
-    if len(entries) == 0 {
-        err = io.EOF
-    }
-
-    return entries, err
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
@@ -105,8 +86,7 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
     }
 
     f, err := dp.Stat(name)
-    // If record not found and
-    //  os.O_CREATE flag is enabled
+    // If record not found and os.O_CREATE flag is enabled
     if err != nil {
         if CheckFlag(os.O_CREATE, flag) {
             return fs.Create(name)
@@ -154,7 +134,7 @@ func (fs *Fs) Rename(oldname, newname string) error {
 func (fs *Fs) Stat(name string) (os.FileInfo, error) {
     f, err := dp.Stat(name)
     if err != nil {
-        return nil, err
+        return nil, os.ErrNotExist
     }
     return convertToAferoFile(f).Stat()
 }

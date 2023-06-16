@@ -1,10 +1,13 @@
 package dataprovider
 
-import "errors"
+import (
+    "errors"
+    "os"
+)
 
 var (
-    ErrInvalidParent = errors.New("parent does not exist or not a directory")
-    ErrExist         = errors.New("file or directory already exist")
-    ErrNotExist      = errors.New("file or directory does not exist")
-    ErrPermission    = errors.New("permission denied")
+    ErrExist         = os.ErrExist
+    ErrNotExist      = os.ErrNotExist
+    ErrPermission    = os.ErrPermission
+    ErrInvalidParent = &os.PathError{Err: errors.New("parent does not exist or not a directory")}
 )

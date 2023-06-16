@@ -2,8 +2,9 @@ package dataprovider
 
 import (
     "database/sql"
-    "strings"
     "time"
+
+    "github.com/lib/pq"
 
     "github.com/forscht/ddrv/dataprovider/db/pgsql"
 )
@@ -17,7 +18,6 @@ type PGProvider struct {
 func NewPGProvider(dbURL string) Provider {
     // Create database connection
     dbConn := pgsql.New(dbURL, false)
-    // Create new PGProvider
     return &PGProvider{db: dbConn}
 }
 
@@ -95,10 +95,7 @@ func (pgp *PGProvider) create(name, parent string, dir bool) (*File, error) {
     file := new(File)
     if err := pgp.db.QueryRow("INSERT INTO fs (name,dir,parentDir) VALUES($1,$2,$3) RETURNING id, dir, mtime", name, dir, parent).
         Scan(&file.ID, &file.Dir, &file.MTime); err != nil {
-        if strings.Contains(err.Error(), "fs_name_parent_key") {
-            return nil, ErrExist
-        }
-        return nil, err
+        return nil, pqErrToOs(err) // Handle already exists
     }
     return file, nil
 }
@@ -114,10 +111,7 @@ func (pgp *PGProvider) update(id, parent string, file *File) (*File, error) {
         if err == sql.ErrNoRows {
             return nil, ErrNotExist
         }
-        if strings.Contains(err.Error(), "fs_name_parent_key") {
-            return nil, ErrExist
-        }
-        return nil, err
+        return nil, pqErrToOs(err) // Handle already exists
     }
     return file, nil
 }
@@ -209,7 +203,7 @@ func (pgp *PGProvider) stat(name string) (*File, error) {
         if err == sql.ErrNoRows {
             return nil, ErrNotExist
         }
-        return nil, err
+        return nil, pqErrToOs(err)
     }
     return file, nil
 }
@@ -223,7 +217,7 @@ func (pgp *PGProvider) ls(name string, limit int, offset int) ([]*File, error) {
         rows, err = pgp.db.Query("SELECT id, name, dir, size, mtime FROM ls($1) ORDER BY name", name)
     }
     if err != nil {
-        return nil, err
+        return nil, pqErrToOs(err)
     }
     defer rows.Close()
 
@@ -240,25 +234,46 @@ func (pgp *PGProvider) ls(name string, limit int, offset int) ([]*File, error) {
 
 func (pgp *PGProvider) touch(name string) error {
     _, err := pgp.db.Exec("SELECT FROM touch($1)", name)
-    return err
+    return pqErrToOs(err)
 }
 
 func (pgp *PGProvider) mkdir(name string) error {
     _, err := pgp.db.Exec("SELECT mkdir($1)", name)
-    return err
+    return pqErrToOs(err)
 }
 
 func (pgp *PGProvider) rm(name string) error {
     _, err := pgp.db.Exec("SELECT rm($1)", name)
-    return err
+    return pqErrToOs(err)
 }
 
 func (pgp *PGProvider) mv(name, newname string) error {
     _, err := pgp.db.Exec("SELECT mv($1, $2)", name, newname)
-    return err
+    return pqErrToOs(err)
 }
 
 func (pgp *PGProvider) chMTime(name string, mtime time.Time) error {
     _, err := pgp.db.Exec("UPDATE fs SET mtime = $1 WHERE id=(SELECT id FROM stat($2));", mtime, name)
+    return pqErrToOs(err)
+}
+
+// Handle custom PGFs code
+func pqErrToOs(err error) error {
+    if pqErr, ok := err.(*pq.Error); ok {
+        switch pqErr.Code {
+        case "P0001": // root dir permission issue
+            return ErrPermission
+        case "P0002":
+            return ErrNotExist
+        case "P0003":
+            return ErrExist
+        case "P0004": // is not a directory
+            return ErrInvalidParent
+        case "23505": // Unique violation error code
+            return ErrExist
+        default:
+            return err
+        }
+    }
     return err
 }
