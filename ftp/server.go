@@ -41,7 +41,6 @@ func New(
     }
 
     driver := &Driver{
-        Debug:    true,
         Fs:       fs,       // The file system to serve over FTP
         username: username, // Username for authentication
         password: password, // Password for authentication

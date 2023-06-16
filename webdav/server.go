@@ -1,12 +1,14 @@
 package webdav
 
 import (
+    "log"
     "net/http"
 
     "github.com/spf13/afero"
     "golang.org/x/net/webdav"
 
     "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/pkg/requestip"
 )
 
 func New(dfs afero.Fs) *http.Server {
@@ -14,6 +16,9 @@ func New(dfs afero.Fs) *http.Server {
     handler := &webdav.Handler{
         FileSystem: NewFs(dfs),
         LockSystem: webdav.NewMemLS(),
+        Logger: func(r *http.Request, err error) {
+            log.Printf("webdav: method=%s url=%s ip=%s error=%q", r.Method, r.URL, requestip.Extract(r), err)
+        },
     }
 
     // Set up Basic Authentication

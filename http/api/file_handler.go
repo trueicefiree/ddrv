@@ -58,13 +58,14 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
             file.Size += int64(a.Size)
             nodes = append(nodes, &dataprovider.Node{URL: a.URL, Size: a.Size})
         })
-
         _, err = io.Copy(dwriter, br)
         if err != nil {
             return err
         }
-
-        if err := dataprovider.CreateFileNodes(file.ID, nodes); err != nil {
+        if err = dwriter.Close(); err != nil {
+            return err
+        }
+        if err = dataprovider.CreateFileNodes(file.ID, nodes); err != nil {
             return err
         }
 

@@ -38,6 +38,7 @@ func LoginHandler() fiber.Handler {
         if err != nil {
             return err
         }
+
         return c.JSON(Response{Message: "login successful", Data: t})
     }
 }

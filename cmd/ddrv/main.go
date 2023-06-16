@@ -32,13 +32,13 @@ func main() {
 
     // Make sure chunkSize is below 25MB
     if config.ChunkSize() > 25*1024*1024 || config.ChunkSize() < 0 {
-        log.Fatalf("invalid chunkSize %d", config.ChunkSize())
+        log.Fatalf("ddrv: invalid chunkSize %d", config.ChunkSize())
     }
 
     // Create a ddrv manager
     mgr, err := ddrv.NewManager(config.ChunkSize(), strings.Split(config.Webhooks(), ","))
     if err != nil {
-        log.Fatalf("failed to open ddrv mgr :%v", err)
+        log.Fatalf("ddrv: failed to open ddrv mgr :%v", err)
     }
 
     // Create DFS object
@@ -53,14 +53,14 @@ func main() {
         go func() {
             // Create and start ftp server
             ftpServer := ftp.New(dfs)
-            log.Printf("starting FTP server on : %s", config.FTPAddr())
+            log.Printf("ddrv: starting FTP server on : %s", config.FTPAddr())
             errCh <- ftpServer.ListenAndServe()
         }()
     }
     if config.HTTPAddr() != "" {
         go func() {
             httpServer := http.New(mgr)
-            log.Printf("starting HTTP server on : %s", config.HTTPAddr())
+            log.Printf("ddrv: starting HTTP server on : %s", config.HTTPAddr())
             errCh <- httpServer.Listen(config.HTTPAddr())
         }()
     }
@@ -68,10 +68,10 @@ func main() {
     if config.WDAddr() != "" {
         go func() {
             webdavServer := webdav.New(dfs)
-            log.Printf("starting WEBDAV server on : %s", config.WDAddr())
+            log.Printf("ddrv: starting WEBDAV server on : %s", config.WDAddr())
             errCh <- webdavServer.ListenAndServe()
         }()
     }
 
-    log.Fatalf("ddrv error %v", <-errCh)
+    log.Fatalf("ddrv: ddrv error %v", <-errCh)
 }

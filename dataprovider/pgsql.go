@@ -7,6 +7,7 @@ import (
     "github.com/lib/pq"
 
     "github.com/forscht/ddrv/dataprovider/db/pgsql"
+    "github.com/forscht/ddrv/pkg/ns"
 )
 
 const RootDirId = "11111111-1111-1111-1111-111111111111"
@@ -24,14 +25,16 @@ func NewPGProvider(dbURL string) Provider {
 func (pgp *PGProvider) get(id, parent string) (*File, error) {
     file := new(File)
     var err error
-
+    if id == "" {
+        id = RootDirId
+    }
     if parent != "" {
         err = pgp.db.QueryRow(`
 			SELECT fs.id, fs.name, dir, parsesize(SUM(node.size)) AS size, fs.parent, fs.mtime
 			FROM fs
 			LEFT JOIN node ON fs.id = node.file
 			WHERE fs.id=$1 AND parent=$2
-			GROUP BY 1, 2, 4, 5
+			GROUP BY 1, 2, 3, 5, 6
 			ORDER BY fs.dir DESC, fs.name;
 		`, id, parent).Scan(&file.ID, &file.Name, &file.Dir, &file.Size, &file.Parent, &file.MTime)
     } else {
@@ -40,7 +43,7 @@ func (pgp *PGProvider) get(id, parent string) (*File, error) {
 			FROM fs
 			LEFT JOIN node ON fs.id = node.file
 			WHERE fs.id=$1
-			GROUP BY 1, 2, 4, 5
+			GROUP BY 1, 2, 3, 5, 6
 			ORDER BY fs.dir DESC, fs.name;
 		`, id).Scan(&file.ID, &file.Name, &file.Dir, &file.Size, &file.Parent, &file.MTime)
     }
@@ -59,6 +62,9 @@ func (pgp *PGProvider) getChild(id string) ([]*File, error) {
     _, err := pgp.get(id, "")
     if err != nil {
         return nil, err
+    }
+    if id == "" {
+        id = RootDirId
     }
     files := make([]*File, 0)
     rows, err := pgp.db.Query(`
@@ -92,8 +98,8 @@ func (pgp *PGProvider) create(name, parent string, dir bool) (*File, error) {
     if !parentDir.Dir {
         return nil, ErrInvalidParent
     }
-    file := new(File)
-    if err := pgp.db.QueryRow("INSERT INTO fs (name,dir,parentDir) VALUES($1,$2,$3) RETURNING id, dir, mtime", name, dir, parent).
+    file := &File{Name: name, Parent: ns.NullString(parent)}
+    if err := pgp.db.QueryRow("INSERT INTO fs (name,dir,parent) VALUES($1,$2,$3) RETURNING id, dir, mtime", name, dir, parent).
         Scan(&file.ID, &file.Dir, &file.MTime); err != nil {
         return nil, pqErrToOs(err) // Handle already exists
     }
@@ -104,10 +110,20 @@ func (pgp *PGProvider) update(id, parent string, file *File) (*File, error) {
     if id == RootDirId {
         return nil, ErrPermission
     }
-    if err := pgp.db.QueryRow(
-        "UPDATE fs SET name=$1, parent=$2, mtime = NOW() WHERE id=$3 AND parent=$4 RETURNING id,dir,mtime",
-        file.Name, file.Parent, id, parent,
-    ).Scan(&file.ID, &file.Dir, &file.MTime); err != nil {
+
+    var err error
+    if parent == "" {
+        err = pgp.db.QueryRow(
+            "UPDATE fs SET name=$1, parent=$2, mtime = NOW() WHERE id=$3 RETURNING id,dir,mtime",
+            file.Name, file.Parent, id,
+        ).Scan(&file.ID, &file.Dir, &file.MTime)
+    } else {
+        err = pgp.db.QueryRow(
+            "UPDATE fs SET name=$1, parent=$2, mtime = NOW() WHERE id=$3 AND parent=$4 RETURNING id,dir,mtime",
+            file.Name, file.Parent, id, parent,
+        ).Scan(&file.ID, &file.Dir, &file.MTime)
+    }
+    if err != nil {
         if err == sql.ErrNoRows {
             return nil, ErrNotExist
         }

@@ -3,11 +3,11 @@ package http
 import (
     "embed"
     "errors"
+    "log"
     "net/http"
 
     "github.com/gofiber/fiber/v2"
     "github.com/gofiber/fiber/v2/middleware/cors"
-    "github.com/gofiber/fiber/v2/middleware/logger"
     "github.com/gofiber/template/html/v2"
 
     "github.com/forscht/ddrv/http/api"
@@ -20,7 +20,10 @@ func New(mgr *ddrv.Manager) *fiber.App {
     // Initialize fiber app
     app := fiber.New(config())
 
-    app.Use(logger.New())
+    // Enable logger
+    app.Use(logger)
+
+    // Enable cors
     app.Use(cors.New())
 
     // Load Web routes
@@ -51,10 +54,16 @@ func config() fiber.Config {
             if errors.As(err, &e) {
                 code = e.Code
             }
+            log.Printf("http: error=%q code=%d method=%s url=%s ip=%s", err, code, ctx.Method(), ctx.OriginalURL(), ctx.IP())
             if code != fiber.StatusInternalServerError {
                 return ctx.Status(code).JSON(api.Response{Message: err.Error()})
             }
             return ctx.Status(code).JSON(api.Response{Message: "internal server error"})
         },
     }
+}
+
+func logger(c *fiber.Ctx) error {
+    log.Printf("http: method=%s url=%s ip=%s", c.Method(), c.OriginalURL(), c.IP())
+    return c.Next()
 }

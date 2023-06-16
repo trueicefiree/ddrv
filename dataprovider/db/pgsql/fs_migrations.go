@@ -47,8 +47,6 @@ CREATE OR REPLACE FUNCTION stat(filepath TEXT)
             )
 AS
 $$
-DECLARE
-    _id UUID;
 BEGIN
     --- sanitize inputs
     filepath = sanitizefpath(filepath, TRUE, 'stat');
@@ -105,11 +103,11 @@ BEGIN
     INTO _id, _dir;
 
     IF _id IS NULL THEN
-        RAISE EXCEPTION 'ls % no such file or directory', filepath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'ls % no such file or directory', filepath USING ERRCODE = 'P0002';
     END IF;
 
     IF _dir = FALSE THEN
-        RAISE EXCEPTION 'ls % not a directory', filepath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'ls % not a directory', filepath USING ERRCODE = 'P0004';
     END IF;
 
     IF filepath = '/' THEN
@@ -167,11 +165,11 @@ BEGIN
     INTO _id, _dir;
 
     IF _id IS NULL THEN
-        RAISE EXCEPTION 'tree % no such file or directory', filepath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'tree % no such file or directory', filepath USING ERRCODE = 'P0002';
     END IF;
 
     IF _dir = FALSE THEN
-        RAISE EXCEPTION 'ls % not a directory', filepath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'ls % not a directory', filepath USING ERRCODE = 'P0004';
     END IF;
 
     IF filepath = '/' THEN
@@ -226,10 +224,10 @@ BEGIN
     INTO _id, _dir;
 
     IF _id IS NULL THEN
-        RAISE EXCEPTION 'touch % no such file or directory', dirpath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'touch % no such file or directory', dirpath USING ERRCODE = 'P0002';
     END IF;
     IF _dir = FALSE THEN
-        RAISE EXCEPTION 'touch % not a directory', dirpath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'touch % not a directory', dirpath USING ERRCODE = 'P0004';
     END IF;
 
     SELECT ID FROM fs WHERE parent = _id AND name = fname INTO _eid;
@@ -271,7 +269,7 @@ BEGIN
               AND (i = 1 OR parent = _parent_id);
 
             IF _dir = FALSE THEN
-                RAISE EXCEPTION 'mkdir % no such file or directory', filepath USING ERRCODE = 'P0001';
+                RAISE EXCEPTION 'mkdir % no such file or directory', filepath USING ERRCODE = 'P0002';
             END IF;
             -- If the directory doesn't exist, create it
             IF _id IS NULL THEN
@@ -308,7 +306,7 @@ BEGIN
     INTO _old_id;
 
     IF _old_id IS NULL THEN
-        RAISE EXCEPTION 'mv % no such file or directory', oldpath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'mv % no such file or directory', oldpath USING ERRCODE = 'P0002';
     END IF;
 
     -- Split newpath into parent path and name
@@ -329,7 +327,7 @@ BEGIN
     INTO _new_parent_id;
 
     IF _new_parent_id IS NULL THEN
-        RAISE EXCEPTION 'mv % no such file or directory', newpath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'mv % no such file or directory', newpath USING ERRCODE = 'P0002';
     END IF;
 
     -- Update the parent id and name of the old path
@@ -355,7 +353,7 @@ BEGIN
     INTO _id;
 
     IF _id IS NULL THEN
-        RAISE EXCEPTION 'rm % no such file or directory',filepath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'rm % no such file or directory',filepath USING ERRCODE = 'P0002';
     END IF;
 
     DELETE FROM fs WHERE id = _id;
@@ -403,11 +401,10 @@ BEGIN
     -- finally, if all conditions are met, return true; otherwise, return false.
     IF filename IS NOT NULL AND filename != '' AND filename !~ '^ ' AND filename !~ '[/<>"\|\?\*]' THEN
     ELSE
-        RAISE EXCEPTION 'invalid filename %', filename USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'invalid filename %', filename USING ERRCODE = 'P0002';
     END IF;
 END;
-$$
-    LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 `
 
 var sanitizeFPath = `
@@ -433,7 +430,7 @@ BEGIN
     IF filepath IS NOT NULL AND filepath != '' AND filepath ~ '^\/' AND filepath !~ '[\0]' AND
        filepath !~ '(^|/) [^/]*' THEN
     ELSE
-        RAISE EXCEPTION 'invalid filepath %', filepath USING ERRCODE = 'P0001';
+        RAISE EXCEPTION 'invalid filepath %', filepath USING ERRCODE = 'P0002';
     END IF;
 
     RETURN filepath;

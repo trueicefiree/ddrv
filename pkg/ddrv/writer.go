@@ -1,8 +1,11 @@
 package ddrv
 
 import (
+    "fmt"
     "io"
 )
+
+var C int
 
 // Writer is a custom writer that implements io.WriteCloser.
 // It streams data in chunks to Discord server channels using webhook
@@ -41,6 +44,7 @@ func (sw *Writer) Write(p []byte) (int, error) {
     if sw.pwriter == nil {
         sw.next()
     }
+    C += len(p)
     total := len(p)
     for len(p) > 0 {
         if sw.idx+len(p) > sw.chunkSize {
@@ -71,6 +75,7 @@ func (sw *Writer) Close() error {
         return ErrAlreadyClosed
     }
     sw.closed = true
+    fmt.Println(C)
     return sw.flush(false)
 }
 
