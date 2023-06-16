@@ -22,8 +22,8 @@ type LogFs struct {
     src afero.Fs // Source file system
 }
 
-// LoadFS creates an instance with logging
-func LoadFS(src afero.Fs) afero.Fs {
+// NewLogFs creates an instance with logging
+func NewLogFs(src afero.Fs) afero.Fs {
     return &LogFs{src: src}
 }
 

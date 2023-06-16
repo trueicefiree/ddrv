@@ -21,7 +21,7 @@ func GetFileHandler() fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        file, err := dataprovider.Get().Get(id, dirId)
+        file, err := dataprovider.Get(id, dirId)
         if err != nil {
             if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
@@ -42,7 +42,7 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
         }
 
-        file, err := dataprovider.Get().Create(fileHeader.Filename, dirId, false)
+        file, err := dataprovider.Create(fileHeader.Filename, dirId, false)
         if err != nil {
             if err == dataprovider.ErrExist || err == dataprovider.ErrInvalidParent {
                 return fiber.NewError(StatusBadRequest, err.Error())
@@ -64,7 +64,7 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
             return err
         }
 
-        if err := dataprovider.Get().CreateFileNodes(file.ID, nodes); err != nil {
+        if err := dataprovider.CreateFileNodes(file.ID, nodes); err != nil {
             return err
         }
 
@@ -78,7 +78,7 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        f, err := dataprovider.Get().Get(id, dirId)
+        f, err := dataprovider.Get(id, dirId)
         if err != nil {
             if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
@@ -87,7 +87,7 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
         }
         fileName := f.Name
 
-        // Get the Content-Type based on the file extension
+        // GetP the Content-Type based on the file extension
         ext := filepath.Ext(fileName)
         mimeType := mime.TypeByExtension(ext)
         if mimeType == "" {
@@ -96,7 +96,7 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
         // Set the Content-Type header
         c.Response().Header.SetContentType(mimeType)
 
-        nodes, err := dataprovider.Get().GetFileNodes(id)
+        nodes, err := dataprovider.GetFileNodes(id)
         if err != nil {
             return err
         }
@@ -157,7 +157,7 @@ func UpdateFileHandler() fiber.Handler {
             return fiber.NewError(StatusBadRequest, err.Error())
         }
 
-        file, err := dataprovider.Get().Update(id, dirId, file)
+        file, err := dataprovider.Update(id, dirId, file)
         if err != nil {
             if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
@@ -177,7 +177,7 @@ func DelFileHandler() fiber.Handler {
         id := c.Params("id")
         dirId := c.Params("dirId")
 
-        if err := dataprovider.Get().Delete(id, dirId); err != nil {
+        if err := dataprovider.Delete(id, dirId); err != nil {
             if err == dataprovider.ErrNotExist {
                 return fiber.NewError(StatusNotFound, err.Error())
             }

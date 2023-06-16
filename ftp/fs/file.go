@@ -71,7 +71,7 @@ func (f *File) Readdir(count int) ([]os.FileInfo, error) {
         return nil, ErrIsNotDir
     }
 
-    files, err := dp.Get().Ls(f.name, count, f.readDirCount)
+    files, err := dp.Ls(f.name, count, f.readDirCount)
     if err != nil {
         return nil, err
     }
@@ -79,7 +79,7 @@ func (f *File) Readdir(count int) ([]os.FileInfo, error) {
     for i, file := range files {
         entries[i] = convertToAferoFile(file)
     }
-    if len(entries) == 0 {
+    if count > 0 && len(entries) == 0 {
         err = io.EOF
     }
     f.readDirCount += len(entries)
@@ -133,7 +133,7 @@ func (f *File) Write(p []byte) (int, error) {
 
     if f.streamWrite == nil {
         if CheckFlag(os.O_APPEND, f.flag) {
-            if err := dp.Get().DeleteFileNodes(f.id); err != nil {
+            if err := dp.DeleteFileNodes(f.id); err != nil {
                 return 0, err
             }
         }
@@ -165,19 +165,15 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
     case io.SeekEnd:
         pos = f.Size() - offset
     }
-
     if pos < 0 {
         return 0, ErrInvalidSeek
     }
-
     if f.streamRead != nil {
         if err := f.streamRead.Close(); err != nil {
             return 0, err
         }
     }
-
     f.streamRead = nil
-
     if err := f.openReadStream(pos); err != nil {
         return 0, err
     }
@@ -199,7 +195,7 @@ func (f *File) Close() error {
         for i, chunk := range f.chunks {
             nodes[i] = convertToNode(chunk)
         }
-        err := dp.Get().CreateFileNodes(f.id, nodes)
+        err := dp.CreateFileNodes(f.id, nodes)
         if err != nil {
             return err
         }

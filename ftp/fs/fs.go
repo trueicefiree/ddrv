@@ -22,62 +22,48 @@ var (
 )
 
 type Fs struct {
-    ro  bool
     mgr *ddrv.Manager
 }
 
 func New(mgr *ddrv.Manager) afero.Fs {
-    return LoadFS(&Fs{mgr: mgr})
+    return NewLogFs(&Fs{mgr: mgr})
 }
 
-func (fs *Fs) Name() string { return "LogFs" }
-
-func (fs *Fs) Chown(_ string, _, _ int) error { return ErrNotSupported }
-
+func (fs *Fs) Name() string                        { return "LogFs" }
+func (fs *Fs) Chown(_ string, _, _ int) error      { return ErrNotSupported }
 func (fs *Fs) Chmod(_ string, _ os.FileMode) error { return ErrNotSupported }
-
 func (fs *Fs) Chtimes(name string, _ time.Time, mtime time.Time) error {
-    err := dp.Get().ChMTime(name, mtime)
-    return err
+    return dp.ChMTime(name, mtime)
 }
 
 func (fs *Fs) Create(name string) (afero.File, error) {
-    if fs.ro {
-        return nil, ErrReadOnly
-    }
-    if err := dp.Get().Touch(name); err != nil {
+    if err := dp.Touch(name); err != nil {
         return nil, err
     }
     return fs.OpenFile(name, os.O_WRONLY, 0666)
 }
 
 func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
-    if fs.ro {
-        return ErrReadOnly
-    }
     parent, _ := filepath.Split(name)
-    file, err := dp.Get().Stat(parent)
+    file, err := dp.Stat(parent)
     if err != nil {
         return err
     }
     if !file.Dir {
         return ErrReadOnly
     }
-    err = dp.Get().Mkdir(name)
+    err = dp.Mkdir(name)
     return err
 }
 
 func (fs *Fs) MkdirAll(path string, _ os.FileMode) error {
-    if fs.ro {
-        return ErrReadOnly
-    }
-    err := dp.Get().Mkdir(path)
+    err := dp.Mkdir(path)
     return err
 }
 
 // ReadDir ClientDriverExtensionFileList for FTPServer
 func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
-    files, err := dp.Get().Ls(name, 0, 0)
+    files, err := dp.Ls(name, 0, 0)
     if err != nil {
         return nil, err
     }
@@ -94,7 +80,7 @@ func (fs *Fs) ReadDir(name string) ([]os.FileInfo, error) {
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
-    f, err := dp.Get().Stat(name)
+    f, err := dp.Stat(name)
     if err != nil {
         return nil, err
     }
@@ -102,7 +88,7 @@ func (fs *Fs) Open(name string) (afero.File, error) {
     file.flag = os.O_RDONLY
     file.mgr = fs.mgr
     if !file.dir {
-        file.data, err = dp.Get().GetFileNodes(file.id)
+        file.data, err = dp.GetFileNodes(file.id)
         if err != nil {
             return nil, err
         }
@@ -114,22 +100,17 @@ func (fs *Fs) Open(name string) (afero.File, error) {
 // OpenFile supported flags, O_WRONLY, O_CREATE, O_RDONLY
 func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error) {
 
-    if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC) {
+    if !CheckFlag(flag, os.O_WRONLY|os.O_RDONLY|os.O_CREATE|os.O_TRUNC|os.O_RDWR) {
         return nil, ErrReadOnly
     }
 
-    // If a file system is read only, only allow a readonly flag
-    if fs.ro && CheckFlag(flag, os.O_RDONLY) {
-        return nil, ErrReadOnly
-    }
-
-    f, err := dp.Get().Stat(name)
-    if err != nil && err == dp.ErrNotExist {
-        // If record not found just create new file and return
+    f, err := dp.Stat(name)
+    // If record not found and
+    //  os.O_CREATE flag is enabled
+    if err != nil {
         if CheckFlag(os.O_CREATE, flag) {
             return fs.Create(name)
         }
-    } else if err != nil {
         return nil, err
     }
 
@@ -138,13 +119,13 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
     file.mgr = fs.mgr
 
     if CheckFlag(os.O_TRUNC, flag) {
-        if err = dp.Get().DeleteFileNodes(file.id); err != nil {
+        if err = dp.DeleteFileNodes(file.id); err != nil {
             return nil, err
         }
     }
 
     if !file.dir {
-        file.data, err = dp.Get().GetFileNodes(file.id)
+        file.data, err = dp.GetFileNodes(file.id)
         if err != nil {
             return nil, err
         }
@@ -154,33 +135,24 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
 }
 
 func (fs *Fs) Remove(name string) error {
-    if fs.ro {
-        return ErrReadOnly
-    }
     parent, _ := filepath.Split(name)
-    _, err := dp.Get().Stat(parent)
+    _, err := dp.Stat(parent)
     if err != nil {
         return err
     }
-    return dp.Get().Rm(name)
+    return dp.Rm(name)
 }
 
 func (fs *Fs) RemoveAll(path string) error {
-    if fs.ro {
-        return ErrReadOnly
-    }
-    return dp.Get().Rm(path)
+    return dp.Rm(path)
 }
 
 func (fs *Fs) Rename(oldname, newname string) error {
-    if fs.ro {
-        return ErrReadOnly
-    }
-    return dp.Get().Mv(oldname, newname)
+    return dp.Mv(oldname, newname)
 }
 
 func (fs *Fs) Stat(name string) (os.FileInfo, error) {
-    f, err := dp.Get().Stat(name)
+    f, err := dp.Stat(name)
     if err != nil {
         return nil, err
     }

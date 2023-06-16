@@ -12,8 +12,8 @@ import (
 )
 
 func LoginHandler() fiber.Handler {
-    username := config.C().GetUsername()
-    password := config.C().GetPassword()
+    username := config.Username()
+    password := config.Password()
 
     secretKey := fmt.Sprintf("%s:%s", username, password)
     return func(c *fiber.Ctx) error {
@@ -43,8 +43,8 @@ func LoginHandler() fiber.Handler {
 }
 
 func AuthHandler() fiber.Handler {
-    guestAllowed := config.C().GetHTTPGuest()
-    secretKey := fmt.Sprintf("%s:%s", config.C().GetUsername(), config.C().GetPassword())
+    guestAllowed := config.HTTPGuest()
+    secretKey := fmt.Sprintf("%s:%s", config.Username(), config.Password())
     return func(c *fiber.Ctx) error {
         // If guests are allowed, enable readonly ops
         if guestAllowed {

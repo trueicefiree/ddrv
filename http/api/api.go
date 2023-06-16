@@ -20,7 +20,7 @@ func Load(app *fiber.App, mgr *ddrv.Manager) {
 
     // Only setup auth middleware
     // if username and password are not blank
-    if config.C().GetUsername() != "" || config.C().GetPassword() != "" {
+    if config.Username() != "" || config.Password() != "" {
         api.Use(AuthHandler())
     }
 

@@ -27,10 +27,10 @@ func New(
     fs afero.Fs,
 ) *ftpserver.FtpServer { // Return a pointer to an FTP server instance
 
-    addr := config.C().GetFTPAddr()
-    ptr := config.C().GetFTPPortRange()
-    username := config.C().GetUsername()
-    password := config.C().GetPassword()
+    addr := config.FTPAddr()
+    ptr := config.FTPPortRange()
+    username := config.Username()
+    password := config.Password()
 
     var portRange *ftpserver.PortRange
     if ptr != "" {
