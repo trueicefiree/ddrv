@@ -88,7 +88,7 @@ func (mgr *Manager) Read(url string, start, end int) (io.ReadCloser, error) {
         return nil, err
     }
     if res.StatusCode != http.StatusPartialContent {
-        return nil, fmt.Errorf("expected code 206 but received %d", res.StatusCode)
+        return nil, fmt.Errorf("read attachment : expected code %d but received %d", http.StatusPartialContent, res.StatusCode)
     }
     // Return the body of the response, which contains the requested data
     return res.Body, nil

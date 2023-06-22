@@ -9,12 +9,13 @@ import (
     "github.com/alecthomas/kong"
     "github.com/joho/godotenv"
 
-    "github.com/forscht/ddrv/backend/fs"
-    "github.com/forscht/ddrv/db"
-    "github.com/forscht/ddrv/frontend/ftp"
-    "github.com/forscht/ddrv/frontend/http"
-    "github.com/forscht/ddrv/internal/config"
+    "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/dataprovider"
+    "github.com/forscht/ddrv/ftp"
+    "github.com/forscht/ddrv/ftp/fs"
+    "github.com/forscht/ddrv/http"
     "github.com/forscht/ddrv/pkg/ddrv"
+    "github.com/forscht/ddrv/webdav"
 )
 
 func main() {
@@ -24,46 +25,53 @@ func main() {
     // Load env file.
     _ = godotenv.Load()
 
-    // Parse command line flags.
-    cfg := config.New()
-    kong.Parse(cfg, kong.Vars{
+    // Parse command line arguments into config
+    kong.Parse(config.New(), kong.Vars{
         "version": fmt.Sprintf("ddrv %s", version),
     })
 
     // Make sure chunkSize is below 25MB
-    if cfg.ChunkSize > 25*1024*1024 || cfg.ChunkSize < 0 {
-        log.Fatalf("invalid chunkSize %d", cfg.ChunkSize)
+    if config.ChunkSize() > 25*1024*1024 || config.ChunkSize() < 0 {
+        log.Fatalf("ddrv: invalid chunkSize %d", config.ChunkSize())
     }
 
-    // Create database connection
-    dbConn := db.New(false)
-
     // Create a ddrv manager
-    mgr, err := ddrv.NewManager(cfg.ChunkSize, strings.Split(cfg.Webhooks, ","))
+    mgr, err := ddrv.NewManager(config.ChunkSize(), strings.Split(config.Webhooks(), ","))
     if err != nil {
-        log.Fatalf("failed to open ddrv mgr :%v", err)
+        log.Fatalf("ddrv: failed to open ddrv mgr :%v", err)
     }
 
     // Create DFS object
-    dfs := fs.New(dbConn, mgr)
+    dfs := fs.New(mgr)
+
+    // New data provider
+    dataprovider.New()
 
     errCh := make(chan error)
 
-    if cfg.FTPAddr != "" {
+    if config.FTPAddr() != "" {
         go func() {
             // Create and start ftp server
             ftpServer := ftp.New(dfs)
-            log.Printf("starting FTP server on : %s", cfg.FTPAddr)
+            log.Printf("ddrv: starting FTP server on : %s", config.FTPAddr())
             errCh <- ftpServer.ListenAndServe()
         }()
     }
-    if cfg.HTTPAddr != "" {
+    if config.HTTPAddr() != "" {
         go func() {
-            httpServer := http.New(dbConn, mgr)
-            log.Printf("starting HTTP server on : %s", cfg.HTTPAddr)
-            errCh <- httpServer.Listen(cfg.HTTPAddr)
+            httpServer := http.New(mgr)
+            log.Printf("ddrv: starting HTTP server on : %s", config.HTTPAddr())
+            errCh <- httpServer.Listen(config.HTTPAddr())
         }()
     }
 
-    log.Fatalf("ddrv error %v", <-errCh)
+    if config.WDAddr() != "" {
+        go func() {
+            webdavServer := webdav.New(dfs)
+            log.Printf("ddrv: starting WEBDAV server on : %s", config.WDAddr())
+            errCh <- webdavServer.ListenAndServe()
+        }()
+    }
+
+    log.Fatalf("ddrv: ddrv error %v", <-errCh)
 }

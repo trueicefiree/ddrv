@@ -49,6 +49,10 @@ func (r *Reader) Read(p []byte) (int, error) {
         return 0, ErrClosed
     }
     if r.reader == nil {
+        // Handle files with zero length
+        if r.curIdx >= len(r.chunks) {
+            return 0, io.EOF
+        }
         if err := r.next(); err != nil {
             return 0, err
         }
