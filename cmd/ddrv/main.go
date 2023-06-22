@@ -11,8 +11,8 @@ import (
 
 	"github.com/forscht/ddrv/internal/config"
 	"github.com/forscht/ddrv/internal/dataprovider"
+	"github.com/forscht/ddrv/internal/fs"
 	"github.com/forscht/ddrv/internal/ftp"
-	"github.com/forscht/ddrv/internal/ftp/fs"
 	"github.com/forscht/ddrv/internal/http"
 	"github.com/forscht/ddrv/internal/webdav"
 	"github.com/forscht/ddrv/pkg/ddrv"
