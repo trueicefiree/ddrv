@@ -316,9 +316,7 @@ BEGIN
     _new_parent_path := '';
     FOR i IN 1..(ARRAY_LENGTH(_new_path, 1) - 1)
         LOOP
-            IF _new_path[i] != '' THEN
-                _new_parent_path := _new_parent_path || '/' || _new_path[i];
-            END IF;
+            _new_parent_path := _new_parent_path || '/' || _new_path[i];
         END LOOP;
 
     -- If new parent path doesn't exist, raise an error

@@ -1,8 +1,6 @@
 package api
 
 import (
-    "fmt"
-
     "github.com/gofiber/fiber/v2"
 
     "github.com/forscht/ddrv/dataprovider"
@@ -32,7 +30,7 @@ func CreateDirHandler() fiber.Handler {
         if err := validate.Struct(file); err != nil {
             return fiber.NewError(StatusBadRequest, err.Error())
         }
-        fmt.Println(file)
+
         file, err := dataprovider.Create(file.Name, string(file.Parent), true)
         if err != nil {
             if err == dataprovider.ErrExist || err == dataprovider.ErrInvalidParent {

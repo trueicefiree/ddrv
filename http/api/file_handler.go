@@ -42,6 +42,10 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
             return fiber.NewError(StatusBadRequest, ErrBadRequest)
         }
 
+        if err := validate.Struct(dataprovider.File{Name: fileHeader.Filename}); err != nil {
+            return fiber.NewError(StatusBadRequest, err.Error())
+        }
+
         file, err := dataprovider.Create(fileHeader.Filename, dirId, false)
         if err != nil {
             if err == dataprovider.ErrExist || err == dataprovider.ErrInvalidParent {
