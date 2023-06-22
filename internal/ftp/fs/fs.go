@@ -8,7 +8,7 @@ import (
 
     "github.com/spf13/afero"
 
-    dp "github.com/forscht/ddrv/dataprovider"
+    "github.com/forscht/ddrv/internal/dataprovider"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -32,11 +32,11 @@ func (fs *Fs) Name() string                        { return "LogFs" }
 func (fs *Fs) Chown(_ string, _, _ int) error      { return ErrNotSupported }
 func (fs *Fs) Chmod(_ string, _ os.FileMode) error { return ErrNotSupported }
 func (fs *Fs) Chtimes(name string, _ time.Time, mtime time.Time) error {
-    return dp.ChMTime(name, mtime)
+    return dataprovider.ChMTime(name, mtime)
 }
 
 func (fs *Fs) Create(name string) (afero.File, error) {
-    if err := dp.Touch(name); err != nil {
+    if err := dataprovider.Touch(name); err != nil {
         return nil, err
     }
     return fs.OpenFile(name, os.O_WRONLY, 0666)
@@ -44,24 +44,24 @@ func (fs *Fs) Create(name string) (afero.File, error) {
 
 func (fs *Fs) Mkdir(name string, _ os.FileMode) error {
     parent, _ := filepath.Split(name)
-    file, err := dp.Stat(parent)
+    file, err := dataprovider.Stat(parent)
     if err != nil {
         return err
     }
     if !file.Dir {
         return ErrIsNotDir
     }
-    err = dp.Mkdir(name)
+    err = dataprovider.Mkdir(name)
     return err
 }
 
 func (fs *Fs) MkdirAll(path string, _ os.FileMode) error {
-    err := dp.Mkdir(path)
+    err := dataprovider.Mkdir(path)
     return err
 }
 
 func (fs *Fs) Open(name string) (afero.File, error) {
-    f, err := dp.Stat(name)
+    f, err := dataprovider.Stat(name)
     if err != nil {
         return nil, err
     }
@@ -69,7 +69,7 @@ func (fs *Fs) Open(name string) (afero.File, error) {
     file.flag = os.O_RDONLY
     file.mgr = fs.mgr
     if !file.dir {
-        file.data, err = dp.GetFileNodes(file.id)
+        file.data, err = dataprovider.GetFileNodes(file.id)
         if err != nil {
             return nil, err
         }
@@ -85,7 +85,7 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
         return nil, ErrReadOnly
     }
 
-    f, err := dp.Stat(name)
+    f, err := dataprovider.Stat(name)
     // If record not found and os.O_CREATE flag is enabled
     if err != nil {
         if CheckFlag(os.O_CREATE, flag) {
@@ -99,13 +99,13 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
     file.mgr = fs.mgr
 
     if CheckFlag(os.O_TRUNC, flag) {
-        if err = dp.DeleteFileNodes(file.id); err != nil {
+        if err = dataprovider.DeleteFileNodes(file.id); err != nil {
             return nil, err
         }
     }
 
     if !file.dir {
-        file.data, err = dp.GetFileNodes(file.id)
+        file.data, err = dataprovider.GetFileNodes(file.id)
         if err != nil {
             return nil, err
         }
@@ -116,23 +116,23 @@ func (fs *Fs) OpenFile(name string, flag int, _ os.FileMode) (afero.File, error)
 
 func (fs *Fs) Remove(name string) error {
     parent, _ := filepath.Split(name)
-    _, err := dp.Stat(parent)
+    _, err := dataprovider.Stat(parent)
     if err != nil {
         return err
     }
-    return dp.Rm(name)
+    return dataprovider.Rm(name)
 }
 
 func (fs *Fs) RemoveAll(path string) error {
-    return dp.Rm(path)
+    return dataprovider.Rm(path)
 }
 
 func (fs *Fs) Rename(oldname, newname string) error {
-    return dp.Mv(oldname, newname)
+    return dataprovider.Mv(oldname, newname)
 }
 
 func (fs *Fs) Stat(name string) (os.FileInfo, error) {
-    f, err := dp.Stat(name)
+    f, err := dataprovider.Stat(name)
     if err != nil {
         return nil, os.ErrNotExist
     }
@@ -143,6 +143,6 @@ func CheckFlag(flag int, allowedFlags int) bool {
     return flag == (flag & allowedFlags)
 }
 
-func convertToAferoFile(df *dp.File) *File {
+func convertToAferoFile(df *dataprovider.File) *File {
     return &File{id: df.ID, name: df.Name, dir: df.Dir, size: df.Size, mtime: df.MTime}
 }

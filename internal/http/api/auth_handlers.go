@@ -8,7 +8,7 @@ import (
     "github.com/gofiber/fiber/v2"
     "github.com/golang-jwt/jwt/v5"
 
-    "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/internal/config"
 )
 
 func LoginHandler() fiber.Handler {

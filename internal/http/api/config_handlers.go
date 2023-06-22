@@ -3,7 +3,7 @@ package api
 import (
     "github.com/gofiber/fiber/v2"
 
-    "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/internal/config"
 )
 
 func ConfigHandler() fiber.Handler {

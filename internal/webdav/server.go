@@ -7,7 +7,7 @@ import (
     "github.com/spf13/afero"
     "golang.org/x/net/webdav"
 
-    "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/internal/config"
     "github.com/forscht/ddrv/pkg/requestip"
 )
 

@@ -6,7 +6,7 @@ import (
 
     "github.com/lib/pq"
 
-    "github.com/forscht/ddrv/dataprovider/db/pgsql"
+    "github.com/forscht/ddrv/internal/dataprovider/db/pgsql"
     "github.com/forscht/ddrv/pkg/ns"
 )
 

@@ -3,7 +3,7 @@ package dataprovider
 import (
     "time"
 
-    "github.com/forscht/ddrv/config"
+    "github.com/forscht/ddrv/internal/config"
 )
 
 var provider Provider

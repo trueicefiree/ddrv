@@ -6,7 +6,7 @@ import (
     "path/filepath"
     "time"
 
-    dp "github.com/forscht/ddrv/dataprovider"
+    "github.com/forscht/ddrv/internal/dataprovider"
     "github.com/forscht/ddrv/pkg/ddrv"
 )
 
@@ -19,7 +19,7 @@ type File struct {
 
     flag         int
     off          int64
-    data         []*dp.Node
+    data         []*dataprovider.Node
     readDirCount int
 
     mgr         *ddrv.Manager
@@ -71,7 +71,7 @@ func (f *File) Readdir(count int) ([]os.FileInfo, error) {
         return nil, ErrIsNotDir
     }
 
-    files, err := dp.Ls(f.name, count, f.readDirCount)
+    files, err := dataprovider.Ls(f.name, count, f.readDirCount)
     if err != nil {
         return nil, err
     }
@@ -133,7 +133,7 @@ func (f *File) Write(p []byte) (int, error) {
 
     if f.streamWrite == nil {
         if CheckFlag(os.O_APPEND, f.flag) {
-            if err := dp.DeleteFileNodes(f.id); err != nil {
+            if err := dataprovider.DeleteFileNodes(f.id); err != nil {
                 return 0, err
             }
         }
@@ -191,11 +191,11 @@ func (f *File) Close() error {
         if len(f.chunks) == 1 && f.chunks[0].Size == 0 {
             return nil
         }
-        nodes := make([]*dp.Node, len(f.chunks))
+        nodes := make([]*dataprovider.Node, len(f.chunks))
         for i, chunk := range f.chunks {
             nodes[i] = convertToNode(chunk)
         }
-        err := dp.CreateFileNodes(f.id, nodes)
+        err := dataprovider.CreateFileNodes(f.id, nodes)
         if err != nil {
             return err
         }
@@ -225,6 +225,6 @@ func (f *File) openReadStream(startAt int64) error {
     return nil
 }
 
-func convertToNode(chunk *ddrv.Attachment) *dp.Node {
-    return &dp.Node{URL: chunk.URL, Size: chunk.Size}
+func convertToNode(chunk *ddrv.Attachment) *dataprovider.Node {
+    return &dataprovider.Node{URL: chunk.URL, Size: chunk.Size}
 }
