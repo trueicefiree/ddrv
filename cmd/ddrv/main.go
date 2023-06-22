@@ -11,7 +11,7 @@ import (
 
 	"github.com/forscht/ddrv/internal/config"
 	"github.com/forscht/ddrv/internal/dataprovider"
-	"github.com/forscht/ddrv/internal/fs"
+	"github.com/forscht/ddrv/internal/filesystem"
 	"github.com/forscht/ddrv/internal/ftp"
 	"github.com/forscht/ddrv/internal/http"
 	"github.com/forscht/ddrv/internal/webdav"
@@ -41,8 +41,8 @@ func main() {
 		log.Fatalf("ddrv: failed to open ddrv mgr :%v", err)
 	}
 
-	// Create DFS object
-	dfs := fs.New(mgr)
+	// Create FS object
+	fs := filesystem.New(mgr)
 
 	// New data provider
 	dataprovider.New()
@@ -52,7 +52,7 @@ func main() {
 	if config.FTPAddr() != "" {
 		go func() {
 			// Create and start ftp server
-			ftpServer := ftp.New(dfs)
+			ftpServer := ftp.New(fs)
 			log.Printf("ddrv: starting FTP server on : %s", config.FTPAddr())
 			errCh <- ftpServer.ListenAndServe()
 		}()
@@ -67,7 +67,7 @@ func main() {
 
 	if config.WDAddr() != "" {
 		go func() {
-			webdavServer := webdav.New(dfs)
+			webdavServer := webdav.New(fs)
 			log.Printf("ddrv: starting WEBDAV server on : %s", config.WDAddr())
 			errCh <- webdavServer.ListenAndServe()
 		}()

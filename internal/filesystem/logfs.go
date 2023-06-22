@@ -1,5 +1,5 @@
 // Package fslog provides an afero FS logging package
-package fs
+package filesystem
 
 import (
 	"io"
