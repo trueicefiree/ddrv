@@ -17,7 +17,7 @@ func New(dfs afero.Fs) *http.Server {
         FileSystem: NewFs(dfs),
         LockSystem: webdav.NewMemLS(),
         Logger: func(r *http.Request, err error) {
-            log.Printf("webdav: method=%s url=%s ip=%s error=%q", r.Method, r.URL, requestip.Extract(r), err)
+            log.Printf("webdav: method=%s url=%s ip=%s error=%v", r.Method, r.URL, requestip.Extract(r), err)
         },
     }
 

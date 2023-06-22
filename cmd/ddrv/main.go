@@ -22,7 +22,7 @@ func main() {
     // Set the maximum number of operating system threads to use.
     runtime.GOMAXPROCS(runtime.NumCPU())
 
-    // New env file.
+    // Load env file.
     _ = godotenv.Load()
 
     // Parse command line arguments into config

@@ -40,7 +40,7 @@ var views embed.FS
 
 func config() fiber.Config {
     engine := html.NewFileSystem(http.FS(views), ".html")
-
+    //engine := html.New("./http/web/views", ".html")
     return fiber.Config{
         DisablePreParseMultipartForm: true, // https://github.com/gofiber/fiber/issues/1838
         StreamRequestBody:            true,

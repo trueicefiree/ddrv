@@ -24,6 +24,9 @@ func Load(app *fiber.App, mgr *ddrv.Manager) {
         api.Use(AuthHandler())
     }
 
+    // Returns necessary ddrv config
+    api.Post("/config", ConfigHandler())
+
     // Load directory middlewares
     api.Post("/directories/", CreateDirHandler())
     api.Get("/directories/:id<guid>?", GetDirHandler())

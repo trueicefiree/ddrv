@@ -19,8 +19,6 @@ func Load(app *fiber.App) {
     }))
 
     app.Get("/", func(c *fiber.Ctx) error {
-        return c.Render("web/views/index", fiber.Map{
-            "Title": "world",
-        })
+        return c.Render("web/views/index", fiber.Map{})
     })
 }
