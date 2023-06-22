@@ -287,6 +287,11 @@ func pqErrToOs(err error) error {
 			return ErrInvalidParent
 		case "23505": // Unique violation error code
 			return ErrExist
+		// Foreign key constraint violation occurred -> on createFileNodes
+		// This error occurs when FTP clients try to do open -> remove -> close
+		// Linux in case of os.OpenFile -> os.Remove -> file.Close ignores error, so we will too
+		case "23503": //
+			return nil
 		default:
 			return err
 		}
