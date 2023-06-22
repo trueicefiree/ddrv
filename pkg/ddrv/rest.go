@@ -73,7 +73,7 @@ func (r *Rest) CreateAttachment(reader io.Reader) (*Attachment, error) {
     if resp.StatusCode != http.StatusOK {
         return nil, fmt.Errorf("create attachment : expected status code %d but recevied %d", http.StatusOK, resp.StatusCode)
     }
-    // Read and parse the response body
+    // read and parse the response body
     respBody, err := io.ReadAll(resp.Body)
     if err != nil {
         return nil, err

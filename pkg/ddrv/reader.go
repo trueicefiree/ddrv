@@ -110,7 +110,7 @@ func (r *Reader) next() error {
         start = int(r.pos - chunk.Start)
     }
 
-    reader, err := r.disc.Read(chunk.URL, start, chunk.Size-1)
+    reader, err := r.disc.read(chunk.URL, start, chunk.Size-1)
     if err != nil {
         return err
     }

@@ -10,7 +10,7 @@ import (
 )
 
 // ErrClosed is returned when a writer or reader is
-// closed and caller is trying to Read or Write
+// closed and caller is trying to read or write
 var ErrClosed = errors.New("is closed")
 
 // ErrAlreadyClosed is returned when the reader/writer is already closed
@@ -73,9 +73,9 @@ func (mgr *Manager) NewReader(chunks []Attachment, pos int64) (io.ReadCloser, er
     return NewReader(chunks, pos, mgr)
 }
 
-// Read fetches a range of data from the specified URL.
+// read fetches a range of data from the specified URL.
 // The range is specified by the start and end positions.
-func (mgr *Manager) Read(url string, start, end int) (io.ReadCloser, error) {
+func (mgr *Manager) read(url string, start, end int) (io.ReadCloser, error) {
     req, err := http.NewRequestWithContext(mgr.traceCtx, http.MethodGet, url, nil)
     if err != nil {
         return nil, err
@@ -94,9 +94,9 @@ func (mgr *Manager) Read(url string, start, end int) (io.ReadCloser, error) {
     return res.Body, nil
 }
 
-// Write created new attachment on Discord with provided Reader,
+// write created new attachment on Discord with provided Reader,
 // returning the Attachment.
-func (mgr *Manager) Write(r io.Reader) (*Attachment, error) {
+func (mgr *Manager) write(r io.Reader) (*Attachment, error) {
     // Select the next webhook client
     client := mgr.next()
 
