@@ -2,41 +2,41 @@
 package validator
 
 import (
-    "log"
-    "regexp"
+	"log"
+	"regexp"
 
-    "github.com/go-playground/validator/v10"
+	"github.com/go-playground/validator/v10"
 )
 
 // Validate is a custom validator that extends the base validator.Validate.
 type Validate struct {
-    validator.Validate
+	validator.Validate
 }
 
 // New creates a new instance of Validate
 func New() *Validate {
-    validate := &Validate{
-        Validate: *validator.New(),
-    }
+	validate := &Validate{
+		Validate: *validator.New(),
+	}
 
-    err := validate.RegisterValidation("regex", validateRegex)
-    if err != nil {
-        log.Fatalf("failed to register regex validator: %s", err)
-    }
+	err := validate.RegisterValidation("regex", validateRegex)
+	if err != nil {
+		log.Fatalf("failed to register regex validator: %s", err)
+	}
 
-    return validate
+	return validate
 }
 
 // validateRegex is the custom validation function that checks if the field value
 // matches the provided regular expression.
 func validateRegex(fl validator.FieldLevel) bool {
-    field := fl.Field()
-    regexTag := fl.Param()
+	field := fl.Field()
+	regexTag := fl.Param()
 
-    regex, err := regexp.Compile(regexTag)
-    if err != nil {
-        log.Fatalf("invalid regex pattern: %s", regexTag)
-    }
+	regex, err := regexp.Compile(regexTag)
+	if err != nil {
+		log.Fatalf("invalid regex pattern: %s", regexTag)
+	}
 
-    return regex.MatchString(field.String())
+	return regex.MatchString(field.String())
 }
