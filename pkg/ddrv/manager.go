@@ -69,9 +69,9 @@ func (mgr *Manager) NewWriter(onChunk func(chunk *Attachment)) io.WriteCloser {
 	return NewWriter(onChunk, mgr.chunkSize, mgr)
 }
 
-// NewAsyncWriter creates a new ddrv.AsyncWriter instance that implements an io.WriterCloser.
+// NewAsyncWriter creates a new ddrv.NWriter instance that implements an io.WriterCloser.
 // This allows for writing large files to Discord as small, manageable chunks.
-// AsyncWriter buffers bytes into memory and writes data to discord in parallel
+// NWriter buffers bytes into memory and writes data to discord in parallel
 func (mgr *Manager) NewAsyncWriter(onChunk func(chunk *Attachment)) io.WriteCloser {
 	return NewAsyncWriter(onChunk, mgr.chunkSize, mgr)
 }
