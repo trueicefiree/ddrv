@@ -21,7 +21,7 @@ func TestProcess(t *testing.T) {
 			concurrency: 2,
 			chunkSize:   4,
 			input:       "This is a test string",
-			processor:   func(b []byte, start int, end int) error { return nil },
+			processor:   func(b []byte, start int) error { return nil },
 			expectError: false,
 		},
 		{
@@ -29,7 +29,7 @@ func TestProcess(t *testing.T) {
 			concurrency: 2,
 			chunkSize:   4,
 			input:       "This string will cause an error",
-			processor:   func(b []byte, start int, end int) error { return errors.New("processing error") },
+			processor:   func(b []byte, start int) error { return errors.New("processing error") },
 			expectError: true,
 		},
 	}

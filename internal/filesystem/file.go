@@ -137,7 +137,7 @@ func (f *File) Write(p []byte) (int, error) {
 				return 0, err
 			}
 		}
-		f.streamWrite = f.mgr.NewWriter(func(chunk *ddrv.Attachment) {
+		f.streamWrite = f.mgr.NewAsyncWriter(func(chunk *ddrv.Attachment) {
 			f.chunks = append(f.chunks, chunk)
 		})
 	}

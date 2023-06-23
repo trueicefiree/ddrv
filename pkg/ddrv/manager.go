@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"sync"
 )
 
 // ErrClosed is returned when a writer or reader is
@@ -36,6 +37,7 @@ type Manager struct {
 	clients   []*Rest         // List of webhook clients corresponding to the webhook URLs
 	lastCIdx  int             // Index of the last used webhook client
 	traceCtx  context.Context // Context for HTTP client tracing
+	mu        sync.Mutex
 }
 
 // NewManager returns a new instance of Manager with specified chunk size and webhook URLs.
@@ -61,10 +63,17 @@ func NewManager(chunkSize int, webhooks []string) (*Manager, error) {
 	return st, nil
 }
 
-// NewWriter creates a new Writer instance that implements an io.WriterCloser.
+// NewWriter creates a new ddrv.Writer instance that implements an io.WriterCloser.
 // This allows for writing large files to Discord as small, manageable chunks.
 func (mgr *Manager) NewWriter(onChunk func(chunk *Attachment)) io.WriteCloser {
 	return NewWriter(onChunk, mgr.chunkSize, mgr)
+}
+
+// NewAsyncWriter creates a new ddrv.AsyncWriter instance that implements an io.WriterCloser.
+// This allows for writing large files to Discord as small, manageable chunks.
+// AsyncWriter buffers bytes into memory and writes data to discord in parallel
+func (mgr *Manager) NewAsyncWriter(onChunk func(chunk *Attachment)) io.WriteCloser {
+	return NewAsyncWriter(onChunk, mgr.chunkSize, mgr)
 }
 
 // NewReader creates a new Reader instance that implements an io.ReaderCloser.
@@ -106,9 +115,11 @@ func (mgr *Manager) write(r io.Reader) (*Attachment, error) {
 
 // next returns the next webhook client in the list, cycling through the list in a round-robin manner.
 func (mgr *Manager) next() *Rest {
+	mgr.mu.Lock()
 	// Select the next client
 	client := mgr.clients[mgr.lastCIdx]
 	// Update the index of the last used client, wrapping around to the start of the list if necessary
 	mgr.lastCIdx = (mgr.lastCIdx + 1) % len(mgr.clients)
+	mgr.mu.Unlock()
 	return client
 }

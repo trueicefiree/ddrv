@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// Writer is a custom writer that implements io.WriteCloser.
+// Writer implements io.WriteCloser.
 // It streams data in chunks to Discord server channels using webhook
 type Writer struct {
 	mgr       *Manager // Manager where Writer writes data

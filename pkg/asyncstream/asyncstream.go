@@ -2,28 +2,29 @@ package asyncstream
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 )
 
 // Processor is a function type that processes a chunk of data and
 // returns an error if processing failed.
-type Processor func([]byte, int, int) error
+type Processor func([]byte, int) error
 
 // chunk is a struct that holds a chunk of data and its start and end
 // positions in the original data stream.
 type chunk struct {
-	buf   []byte // The chunk of data.
-	start int    // The start position in the original data stream.
-	end   int    // The end position in the original data stream.
+	buf []byte // The chunk of data.
+	idx int
 }
 
 // AsyncStream is a struct that reads data from a stream, divides
 // it into chunks, and processes the chunks concurrently.
 type AsyncStream struct {
-	mu    sync.Mutex // Mutex to synchronize access to shared state.
-	conc  int        // The number of worker goroutines to use for processing.
-	csize int        // The size of each data chunk to read.
+	mu           sync.Mutex // Mutex to synchronize access to shared state.
+	conc         int        // The number of worker goroutines to use for processing.
+	csize        int        // The size of each data chunk to read.
+	chunkCounter int
 }
 
 // New creates a new AsyncStream with the specified
@@ -47,20 +48,20 @@ func (ar *AsyncStream) Process(stream io.Reader, processor Processor) error {
 
 	// Create channels for passing chunks to workers and errors back to the caller.
 	errCh := make(chan error)
-	chunkCh := make(chan chunk, ar.conc)
+	chunkCh := make(chan chunk)
 
 	// Start a goroutine to read data from the stream, divide it into chunks,
 	// and send the chunks to the workers.
 	go func() {
 		defer close(chunkCh)
-		byteIdx := 0
+		chunkIdx := 0
 		scanner := NewScanner(stream, ar.csize)
 		for scanner.Scan() {
 			select {
 			case <-ctx.Done(): // Stop if the context is canceled.
 				return
-			case chunkCh <- chunk{buf: scanner.Bytes(), start: byteIdx, end: byteIdx + len(scanner.Bytes())}:
-				byteIdx += len(scanner.Bytes())
+			case chunkCh <- chunk{buf: scanner.Bytes(), idx: chunkIdx}:
+				chunkIdx += 1
 			}
 		}
 		// If reading failed, report the error.
@@ -73,6 +74,7 @@ func (ar *AsyncStream) Process(stream io.Reader, processor Processor) error {
 	var wg sync.WaitGroup
 	wg.Add(ar.conc)
 	for i := 0; i < ar.conc; i++ {
+		fmt.Println("spinning up worker -> ", i)
 		go func() {
 			defer wg.Done()
 			for {
@@ -83,8 +85,9 @@ func (ar *AsyncStream) Process(stream io.Reader, processor Processor) error {
 					if !ok { // Stop if there are no more chunks.
 						return
 					}
+					fmt.Println("processing -> ", chunk.idx, len(chunk.buf))
 					// Process the chunk and report any errors.
-					if err := processor(chunk.buf, chunk.start, chunk.end); err != nil {
+					if err := processor(chunk.buf, chunk.idx); err != nil {
 						errCh <- err
 						cancel() // Cancel the context, stopping all goroutines.
 						return
