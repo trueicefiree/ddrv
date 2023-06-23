@@ -5,6 +5,7 @@ import (
 	"log"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/joho/godotenv"
@@ -73,5 +74,18 @@ func main() {
 		}()
 	}
 
+	go stats("")
+
 	log.Fatalf("ddrv: ddrv error %v", <-errCh)
+}
+
+func stats(msg string) {
+	go func() {
+		for {
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			fmt.Printf("%v memory usage: %v MB\n", msg, m.Alloc/1024/1024)
+			time.Sleep(5 * time.Second)
+		}
+	}()
 }
