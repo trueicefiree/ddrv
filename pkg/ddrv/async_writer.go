@@ -81,7 +81,7 @@ func (w *AsyncWriter) Close() error {
 }
 
 func (w *AsyncWriter) startWorkers(reader io.Reader) {
-	stream := asyncstream.New(4, w.chunkSize)
+	stream := asyncstream.New(len(w.mgr.clients), w.chunkSize)
 	w.errCh <- stream.Process(&BlockingReader{reader}, func(data []byte, idx int) error {
 		a, err := w.mgr.write(bytes.NewReader(data))
 		if err != nil {

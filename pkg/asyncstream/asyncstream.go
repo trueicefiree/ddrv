@@ -2,7 +2,6 @@ package asyncstream
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 )
@@ -18,18 +17,26 @@ type chunk struct {
 	idx int
 }
 
+var bufferPool sync.Pool
+
 // AsyncStream is a struct that reads data from a stream, divides
 // it into chunks, and processes the chunks concurrently.
 type AsyncStream struct {
 	mu           sync.Mutex // Mutex to synchronize access to shared state.
 	conc         int        // The number of worker goroutines to use for processing.
 	csize        int        // The size of each data chunk to read.
-	chunkCounter int
+	chunkCounter int32      // Atomic counter for chunk index.
 }
 
 // New creates a new AsyncStream with the specified
 // number of workers and chunk size.
 func New(concurrency int, chunkSize int) *AsyncStream {
+	bufferPool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, chunkSize)
+		},
+	}
+
 	return &AsyncStream{
 		conc:  concurrency,
 		csize: chunkSize,
@@ -57,11 +64,15 @@ func (ar *AsyncStream) Process(stream io.Reader, processor Processor) error {
 		chunkIdx := 0
 		scanner := NewScanner(stream, ar.csize)
 		for scanner.Scan() {
+			data := scanner.Bytes()
+			buf := bufferPool.Get().([]byte)
+			copy(buf, data)
 			select {
 			case <-ctx.Done(): // Stop if the context is canceled.
+				bufferPool.Put(buf) // Return the buffer to the pool.
 				return
-			case chunkCh <- chunk{buf: scanner.Bytes(), idx: chunkIdx}:
-				chunkIdx += 1
+			case chunkCh <- chunk{buf: buf, idx: chunkIdx}:
+				chunkIdx++
 			}
 		}
 		// If reading failed, report the error.
@@ -74,7 +85,6 @@ func (ar *AsyncStream) Process(stream io.Reader, processor Processor) error {
 	var wg sync.WaitGroup
 	wg.Add(ar.conc)
 	for i := 0; i < ar.conc; i++ {
-		fmt.Println("spinning up worker -> ", i)
 		go func() {
 			defer wg.Done()
 			for {
@@ -85,13 +95,13 @@ func (ar *AsyncStream) Process(stream io.Reader, processor Processor) error {
 					if !ok { // Stop if there are no more chunks.
 						return
 					}
-					fmt.Println("processing -> ", chunk.idx, len(chunk.buf))
 					// Process the chunk and report any errors.
 					if err := processor(chunk.buf, chunk.idx); err != nil {
 						errCh <- err
 						cancel() // Cancel the context, stopping all goroutines.
 						return
 					}
+					bufferPool.Put(chunk.buf) // Return the buffer to the pool.
 				}
 			}
 		}()

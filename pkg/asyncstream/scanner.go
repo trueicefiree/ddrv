@@ -1,7 +1,6 @@
 package asyncstream
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -27,8 +26,7 @@ func NewScanner(r io.Reader, size int) *Scanner {
 // It returns false if an error occurred during reading, otherwise true.
 func (s *Scanner) Scan() bool {
 	n, err := s.r.Read(s.buf) // Read data from the reader into the buffer.
-	fmt.Println("scan read -> ", n)
-	s.buf = s.buf[:n] // Slice the buffer to the actual number of bytes read.
+	s.buf = s.buf[:n]         // Slice the buffer to the actual number of bytes read.
 	if err == io.EOF && n > 0 {
 		s.setErr(err) // record the error
 		return true
@@ -42,9 +40,7 @@ func (s *Scanner) Scan() bool {
 
 // Bytes returns the most recent data read by the Scanner.
 func (s *Scanner) Bytes() []byte {
-	buff := make([]byte, len(s.buf))
-	copy(buff, s.buf)
-	return buff
+	return s.buf
 }
 
 // String returns the most recent data read by the Scanner as a string.
