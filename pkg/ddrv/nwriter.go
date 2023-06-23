@@ -77,7 +77,7 @@ func (w *NWriter) Close() error {
 }
 
 func (w *NWriter) startWorkers(reader io.Reader) {
-	concurrency := len(w.mgr.clients) * 3
+	concurrency := len(w.mgr.clients)
 	w.wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
