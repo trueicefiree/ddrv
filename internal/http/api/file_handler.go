@@ -79,7 +79,7 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
 		if err = dwriter.Close(); err != nil {
 			return err
 		}
-		
+
 		if err = dp.CreateFileNodes(file.ID, nodes); err != nil {
 			return err
 		}

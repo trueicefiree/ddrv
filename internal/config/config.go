@@ -15,7 +15,7 @@ type Config struct {
 	DbURL        string           `help:"Connection string for the Postgres database. The format should be: postgres://user:password@localhost:port/database?sslmode=disable" env:"DATABASE_URL" required:""`
 	Webhooks     string           `help:"Comma-separated list of Manager webhook URLs used for sending attachment messages." env:"WEBHOOKS" required:""`
 	ChunkSize    int              `help:"The maximum size in bytes of chunks to be sent via Manager webhook. By default, it's set to 24MB (25165824 bytes)." env:"CHUNK_SIZE" default:"25165824"`
-	AsyncWrite   bool             `help:"Enable parallel file writing to discord for fast file uploads. Uses significantly more ram. - (chunkSize * number of webhook) + 20% bytes" env:"ASYNC_WRITE" default:"false"`
+	AsyncWrite   bool             `help:"Enables concurrent file uploads to Discord, resulting in faster file transfers. Note that this will use significantly more RAM, approximately (chunkSize * number of webhooks) + 20% extra bytes. Use with caution based on your system's memory capacity." env:"ASYNC_WRITE" default:"false"`
 	Version      kong.VersionFlag `kong:"name='version', help='Display version.'"`
 }
 
