@@ -13,6 +13,8 @@ import (
 // NWriter implements io.WriteCloser.
 // It streams data in chunks to Discord server channels using webhook
 // NWriter buffers bytes into memory and writes data to discord in parallel
+// at the cost of high-memory usage.
+// expected memory usage - (chunkSize * number of webhooks) + 20% bytes
 type NWriter struct {
 	mgr       *Manager // Manager where Writer writes data
 	chunkSize int      // The maximum Size of a chunk
@@ -28,26 +30,23 @@ type NWriter struct {
 	chunkCounter int64
 }
 
-func NewAsyncWriter(onChunk func(chunk *Attachment), chunkSize int, mgr *Manager) io.WriteCloser {
-	sw := &NWriter{
+func NewNWriter(onChunk func(chunk *Attachment), chunkSize int, mgr *Manager) io.WriteCloser {
+	reader, writer := io.Pipe()
+	w := &NWriter{
 		mgr:       mgr,
 		onChunk:   onChunk,
 		chunkSize: chunkSize,
+		pwriter:   writer,
 	}
-	return sw
+	go w.startWorkers(breader.New(reader))
+
+	return w
 }
 
 func (w *NWriter) Write(p []byte) (int, error) {
 	if w.closed {
 		return 0, ErrClosed
 	}
-	w.mu.Lock()
-	if w.pwriter == nil {
-		reader, writer := io.Pipe()
-		w.pwriter = writer
-		go w.startWorkers(breader.New(reader))
-	}
-	w.mu.Unlock()
 	if w.err != nil {
 		return 0, w.err
 	}
