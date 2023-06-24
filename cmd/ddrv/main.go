@@ -84,8 +84,12 @@ func stats(msg string) {
 		for {
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
-			fmt.Printf("%v memory usage: %v MB\n", msg, m.Alloc/1024/1024)
+			fmt.Printf("%v memory usage: Heap %v MB HeapIdle %v MB HeapReleased %v MB Frag %v MB \n", msg, btm(m.HeapAlloc), btm(m.HeapIdle), btm(m.HeapReleased), btm(m.HeapInuse-m.HeapAlloc))
 			time.Sleep(5 * time.Second)
 		}
 	}()
+}
+
+func btm(n uint64) uint64 {
+	return n / 1024 / 1024
 }
