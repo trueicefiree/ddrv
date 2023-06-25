@@ -105,56 +105,6 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
 	}
 }
 
-func CreateRawFileHandler(mgr *ddrv.Manager) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		dirId := c.Params("dirId")
-		name := c.Params("name")
-
-		reader := c.Context().RequestBodyStream()
-
-		if err := validate.Struct(dp.File{Name: name, Parent: ns.NullString(dirId)}); err != nil {
-			return fiber.NewError(StatusBadRequest, err.Error())
-		}
-
-		file, err := dp.Create(name, dirId, false)
-		if err != nil {
-			if err == dp.ErrExist || err == dp.ErrInvalidParent {
-				return fiber.NewError(StatusBadRequest, err.Error())
-			}
-			return err
-		}
-
-		nodes := make([]*dp.Node, 0)
-
-		var dwriter io.WriteCloser
-		onChunk := func(a *ddrv.Attachment) {
-			file.Size += int64(a.Size)
-			nodes = append(nodes, &dp.Node{URL: a.URL, Size: a.Size})
-		}
-
-		if config.AsyncWrite() {
-			dwriter = mgr.NewNWriter(onChunk)
-		} else {
-			dwriter = mgr.NewWriter(onChunk)
-		}
-
-		if _, err = io.Copy(dwriter, reader); err != nil {
-			return err
-		}
-
-		if err = dwriter.Close(); err != nil {
-			return err
-		}
-
-		if err = dp.CreateFileNodes(file.ID, nodes); err != nil {
-			return err
-		}
-
-		return c.Status(StatusOk).
-			JSON(Response{Message: "file created", Data: file})
-	}
-}
-
 func UpdateFileHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
@@ -224,7 +174,8 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
 			}
 			c.Set(fiber.HeaderContentType, mimeType)
 		}
-
+		c.Set(fiber.HeaderAcceptRanges, "bytes")
+		
 		nodes, err := dp.GetFileNodes(id)
 		if err != nil {
 			return err
