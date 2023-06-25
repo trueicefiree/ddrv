@@ -11,7 +11,7 @@ type File struct {
 	Name   string        `json:"name" validate:"required,regex=^[\w\-. ]+$"`
 	Dir    bool          `json:"dir"`
 	Size   int64         `json:"size,omitempty"`
-	Parent ns.NullString `json:"parent,omitempty" validate:"uuid"`
+	Parent ns.NullString `json:"parent,omitempty" validate:"required,uuid"`
 	MTime  time.Time     `json:"mtime"`
 }
 

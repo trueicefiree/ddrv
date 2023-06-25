@@ -43,5 +43,5 @@ func Load(app *fiber.App, mgr *ddrv.Manager) {
 	// Just like discord, we will not authorize file endpoints
 	// so that it can work with download managers or media players
 	app.Get("/files/:id", DownloadFileHandler(mgr))
-
+	app.Get("/files/:id/:fname", DownloadFileHandler(mgr))
 }

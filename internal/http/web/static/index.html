@@ -63,9 +63,11 @@
             <button onclick="createFolderDialog.showModal()" ng-show="btnCreateFolder">
                 Create Folder
             </button>
-            <button ng-click="uploadFile()" ng-show="btnUploadFile">
+            <input type="file" id="fileUpload" style="display: none;" onchange="angular.element(this).scope().fileChanged(this.files)" />
+            <button ng-click="upload()" ng-show="btnUploadFile">
                 Upload File
             </button>
+
             <button ng-click="copyLink()" ng-show="btnCopyLink">
                 Copy Link
             </button>
@@ -77,7 +79,6 @@
             </button>
         </div>
     </div>
-
     <div>
         <table>
             <thead>
@@ -102,6 +103,11 @@
             </tbody>
         </table>
     </div>
+
+    <div ng-repeat="progress in progressbars" class="progress-bar progress-bar-show-percent">
+        <div class="progress-bar-filled" ng-style="{'width': progress.value + '%'}" data-filled="Uploading {{progress.name}} {{progress.value}}%"></div>
+    </div>
+
 </div>
 <script src="main.js"></script>
 </body>

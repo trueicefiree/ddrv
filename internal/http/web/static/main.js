@@ -63,7 +63,7 @@ app.controller('authController', ['$scope', '$rootScope', 'AuthService', functio
     }
 }])
 
-app.controller('controller', ['$scope', 'AuthService', 'FMService', function ($scope, AuthService, FMService) {
+app.controller('controller', ['$scope', 'FMService', '$interval', function ($scope, FMService, $interval) {
 
     // current directory
     $scope.directory = {files: []}
@@ -102,9 +102,10 @@ app.controller('controller', ['$scope', 'AuthService', 'FMService', function ($s
             $scope.$apply(() => $scope.directory = directory)
         })
     }
+
     $scope.open = function (file) {
-        const url = `${$scope.baseURL}/files/${file.id}`
-        triggerDownload(url, file.name)
+        const url = `${$scope.baseURL}/files/${file.id}/${file.name}`
+        window.open(url, '_blank');
     }
 
     $scope.createFolder = function () {
@@ -114,6 +115,41 @@ app.controller('controller', ['$scope', 'AuthService', 'FMService', function ($s
                 $scope.load($scope.directory.id)
                 $scope.newFolderName = ''
             })
+    }
+
+    $scope.progressbars = [];
+
+    $scope.progressCallback = function(fileName, progress) {
+        let progressBar = $scope.progressbars.find(bar => bar.name === fileName);
+        if (progressBar) {
+            $scope.$apply(function() {
+                progressBar.value = progress;
+            });
+        }
+    }
+
+    $scope.upload = function () {
+        document.getElementById('fileUpload').click();
+    }
+
+    $scope.fileChanged = function(files) {
+        $scope.selectedFile = files[0];
+        $scope.progressbars.push({name: $scope.selectedFile.name, value: 0}); // create new progress bar
+        FMService.createFile($scope.directory.id, $scope.selectedFile, $scope.progressCallback).then(() => {
+            $scope.load($scope.directory.id);
+            let progressBarIndex = $scope.progressbars.findIndex(bar => bar.name === $scope.selectedFile.name);
+            if (progressBarIndex !== -1) {
+                $scope.progressbars.splice(progressBarIndex, 1);
+            }
+            $scope.selectedFile = null;
+        });
+    }
+
+    $scope.progressCallback = function(fileName, progress) {
+        let progressBar = $scope.progressbars.find(bar => bar.name === fileName);
+        if (progressBar) {
+            progressBar.value = progress;
+        }
     }
 
     $scope.rename = function () {
@@ -132,8 +168,6 @@ app.controller('controller', ['$scope', 'AuthService', 'FMService', function ($s
         }
         await $scope.load($scope.directory.id)
     }
-
-
 }]);
 
 app.service('AuthService', ['$http', '$window', function ($http, $window) {
@@ -181,7 +215,7 @@ app.service('FMService', ['$http', function ($http) {
             const endpoint = id ? '/api/directories/' + id : '/api/directories'
             const {data: {data: dir}} = await $http.get(endpoint)
             dir.files = dir.files.map(f => {
-                return {...f, size: f.size === undefined ? 'folder' : humanReadableSize(f.size), selected: false}
+                return {...f, size: f.dir ? 'folder' : humanReadableSize(f.size), selected: false}
             })
             return dir
         },
@@ -191,8 +225,24 @@ app.service('FMService', ['$http', function ($http) {
         deleteDir: function (id) {
             return $http.delete('/api/directories/' + id);
         },
-        createFile: function (dirId, file) {
-            return $http.post('/api/directories/' + dirId + '/files', file);
+        createFile: function (dirId, file, progressCallback) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            return $http({
+                method: 'POST',
+                url: '/api/directories/' + dirId + '/files',
+                data: formData,
+                headers: {'Content-Type': undefined}, // Let browser set the content-type
+                uploadEventHandlers: {
+                    progress: function (e) {
+                        if (e.lengthComputable) {
+                            let progress = e.loaded / e.total * 100;
+                            progressCallback(file.name, progress);
+                        }
+                    }
+                }
+            });
         },
         updateFile: function (dirId, id, file) {
             return $http.put('/api/directories/' + dirId + '/files/' + id, file);
@@ -253,7 +303,5 @@ function triggerDownload(url, name) {
     const link = document.createElement('a');
     link.href = url;
     link.download = name;
-
-    // Programmatically trigger the click event
     link.click();
 }

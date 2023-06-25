@@ -11,6 +11,7 @@ import (
 	dp "github.com/forscht/ddrv/internal/dataprovider"
 	"github.com/forscht/ddrv/pkg/ddrv"
 	"github.com/forscht/ddrv/pkg/httprange"
+	"github.com/forscht/ddrv/pkg/ns"
 )
 
 const FileDownloadBufSize = 1024 * 100 // 100KB
@@ -41,7 +42,7 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
 			return fiber.NewError(StatusBadRequest, ErrBadRequest)
 		}
 
-		if err := validate.Struct(dp.File{Name: fileHeader.Filename}); err != nil {
+		if err := validate.Struct(dp.File{Name: fileHeader.Filename, Parent: ns.NullString(dirId)}); err != nil {
 			return fiber.NewError(StatusBadRequest, err.Error())
 		}
 
@@ -136,6 +137,7 @@ func DelFileHandler() fiber.Handler {
 func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
+		name := c.Params("fname")
 
 		f, err := dp.Get(id, "")
 		if err != nil {
@@ -144,16 +146,17 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
 			}
 			return err
 		}
-		fileName := f.Name
 
-		// Get the Content-Type based on the file extension
-		ext := filepath.Ext(fileName)
-		mimeType := mime.TypeByExtension(ext)
-		if mimeType == "" {
-			mimeType = fiber.MIMEOctetStream // default to binary of unknown
+		if f.Name != name {
+			c.Set(fiber.HeaderContentDisposition, "attachment; filename="+f.Name)
+		} else {
+			ext := filepath.Ext(name)
+			mimeType := mime.TypeByExtension(ext)
+			if mimeType == "" {
+				mimeType = fiber.MIMEOctetStream
+			}
+			c.Set(fiber.HeaderContentType, mimeType)
 		}
-		// Set the Content-Type header
-		c.Response().Header.SetContentType(mimeType)
 
 		nodes, err := dp.GetFileNodes(id)
 		if err != nil {
