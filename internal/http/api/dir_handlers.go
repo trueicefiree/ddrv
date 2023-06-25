@@ -11,13 +11,13 @@ func GetDirHandler() fiber.Handler {
 		id := c.Params("id")
 		dir, err := dp.Get(id, "")
 		if err != nil {
+			if err == dp.ErrNotExist {
+				return fiber.NewError(StatusNotFound, err.Error())
+			}
 			return err
 		}
 		files, err := dp.GetChild(c.Params("id"))
 		if err != nil {
-			if err == dp.ErrNotExist {
-				return fiber.NewError(StatusNotFound, err.Error())
-			}
 			return err
 		}
 		directory := Directory{dir, files}

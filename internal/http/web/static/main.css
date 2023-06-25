@@ -15,7 +15,7 @@ body {
 
 table {
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
     width: 100%;
 }
 
@@ -32,13 +32,42 @@ table td, th {
     text-align: justify;
 }
 
-table tbody tr:hover {
-    background-color: #ddeeff;
-}
 
 th:first-child,
 td:first-child {
     width: 20px;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+    overflow: hidden;
+    max-width: 5rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+    text-align: right;
+    min-width: 2rem;
+    max-width: 2rem;
+}
+
+th:nth-child(4),
+td:nth-child(4) {
+    text-align: center;
+    min-width: 2rem;
+    max-width: 2rem;
+}
+
+table tbody tr:hover {
+    background-color: #ddeeff;
+}
+
+@media (max-width: 50rem) {
+    td:nth-child(4), th:nth-child(4) {
+        display: none;
+    }
 }
 
 h1, h2, h3 {
@@ -111,12 +140,6 @@ dialog::backdrop {
     font-weight: bold;
 }
 
-@media (max-width: 50rem) {
-    td:nth-child(4), th:nth-child(4) {
-        display: none;
-    }
-}
-
 /*Copied from terminal css*/
 .progress-bar {
     height: 8px;
@@ -166,3 +189,4 @@ dialog::backdrop {
     visibility: hidden;
     opacity: 0;
 }
+

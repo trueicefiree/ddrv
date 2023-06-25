@@ -119,10 +119,10 @@ app.controller('controller', ['$scope', 'FMService', '$interval', function ($sco
 
     $scope.progressbars = [];
 
-    $scope.progressCallback = function(fileName, progress) {
+    $scope.progressCallback = function (fileName, progress) {
         let progressBar = $scope.progressbars.find(bar => bar.name === fileName);
         if (progressBar) {
-            $scope.$apply(function() {
+            $scope.$apply(function () {
                 progressBar.value = progress;
             });
         }
@@ -132,28 +132,39 @@ app.controller('controller', ['$scope', 'FMService', '$interval', function ($sco
         document.getElementById('fileUpload').click();
     }
 
-    $scope.fileChanged = function(files) {
-        $scope.selectedFile = files[0];
-        $scope.progressbars.push({name: $scope.selectedFile.name, value: 0}); // create new progress bar
-        FMService.createFile($scope.directory.id, $scope.selectedFile, $scope.progressCallback).then(() => {
-            $scope.load($scope.directory.id);
-            let progressBarIndex = $scope.progressbars.findIndex(bar => bar.name === $scope.selectedFile.name);
-            if (progressBarIndex !== -1) {
-                $scope.progressbars.splice(progressBarIndex, 1);
-            }
-            $scope.selectedFile = null;
+    $scope.fileChanged = function (files) {
+        angular.forEach(files, function (file) {
+            $scope.progressbars.push({name: file.name, value: 0}); // Create new progress bar for each file
+            FMService.createFile($scope.directory.id, file, $scope.progressCallback).then(() => {
+                $scope.load($scope.directory.id);
+                let progressBarIndex = $scope.progressbars.findIndex(bar => bar.name === file.name);
+                if (progressBarIndex !== -1) {
+                    $scope.progressbars.splice(progressBarIndex, 1);
+                }
+            });
         });
     }
 
-    $scope.progressCallback = function(fileName, progress) {
+    $scope.progressCallback = function (fileName, progress) {
         let progressBar = $scope.progressbars.find(bar => bar.name === fileName);
         if (progressBar) {
             progressBar.value = progress;
         }
     }
 
-    $scope.rename = function () {
-
+    $scope.rename = async function () {
+        const resource = $scope.directory.files.find(f => f.selected === true)
+        if (resource) {
+            if (resource.dir) {
+                const directory = {name: $scope.newName, parent: resource.parent}
+                await FMService.updateDir(resource.id, directory)
+            } else {
+                const file = {name:$scope.newName, parent: resource.parent}
+                await FMService.updateFile($scope.directory.id, resource.id, file)
+            }
+            $scope.load($scope.directory.id)
+            document.getElementById("renameDialog").close()
+        }
     }
 
     $scope.copyLink = function () {
