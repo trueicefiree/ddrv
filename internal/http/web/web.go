@@ -13,12 +13,16 @@ var static embed.FS
 
 func Load(app *fiber.App) {
 
-	app.Use("/static", filesystem.New(filesystem.Config{
-		Root:       http.FS(static),
-		PathPrefix: "static",
+	//app.Use("/static", filesystem.New(filesystem.Config{
+	//	Root:       http.FS(static),
+	//	PathPrefix: "static",
+	//}))
+
+	app.Use(filesystem.New(filesystem.Config{
+		Root: http.Dir("./internal/http/web/static"),
 	}))
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Render("web/views/index", fiber.Map{})
-	})
+	//app.Get("/", func(c *fiber.Ctx) error {
+	//	return c.Render("web/views/index", fiber.Map{})
+	//})
 }

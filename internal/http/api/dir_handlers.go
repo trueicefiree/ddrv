@@ -3,25 +3,32 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 
-	dataprovider2 "github.com/forscht/ddrv/internal/dataprovider"
+	dp "github.com/forscht/ddrv/internal/dataprovider"
 )
 
 func GetDirHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		files, err := dataprovider2.GetChild(c.Params("id"))
+		id := c.Params("id")
+		dir, err := dp.Get(id, "")
 		if err != nil {
-			if err == dataprovider2.ErrNotExist {
+			return err
+		}
+		files, err := dp.GetChild(c.Params("id"))
+		if err != nil {
+			if err == dp.ErrNotExist {
 				return fiber.NewError(StatusNotFound, err.Error())
 			}
 			return err
 		}
-		return c.JSON(Response{Message: "directory retrieved", Data: files})
+		directory := Directory{dir, files}
+		return c.Status(StatusOk).
+			JSON(Response{Message: "directory retrieved", Data: directory})
 	}
 }
 
 func CreateDirHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		file := new(dataprovider2.File)
+		file := new(dp.File)
 
 		if err := c.BodyParser(file); err != nil {
 			return fiber.NewError(StatusBadRequest, ErrBadRequest)
@@ -31,9 +38,9 @@ func CreateDirHandler() fiber.Handler {
 			return fiber.NewError(StatusBadRequest, err.Error())
 		}
 
-		file, err := dataprovider2.Create(file.Name, string(file.Parent), true)
+		file, err := dp.Create(file.Name, string(file.Parent), true)
 		if err != nil {
-			if err == dataprovider2.ErrExist || err == dataprovider2.ErrInvalidParent {
+			if err == dp.ErrExist || err == dp.ErrInvalidParent {
 				return fiber.NewError(StatusBadRequest, err.Error())
 			}
 			return err
@@ -47,7 +54,7 @@ func UpdateDirHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 
-		dir := new(dataprovider2.File)
+		dir := new(dp.File)
 
 		if err := c.BodyParser(dir); err != nil {
 			return fiber.NewError(StatusBadRequest, ErrBadRequest)
@@ -57,18 +64,19 @@ func UpdateDirHandler() fiber.Handler {
 			return fiber.NewError(StatusBadRequest, err.Error())
 		}
 
-		dir, err := dataprovider2.Update(id, "", dir)
+		dir, err := dp.Update(id, "", dir)
 		if err != nil {
-			if err == dataprovider2.ErrNotExist {
+			if err == dp.ErrNotExist {
 				return fiber.NewError(StatusNotFound, err.Error())
 			}
-			if err == dataprovider2.ErrExist {
+			if err == dp.ErrExist {
 				return fiber.NewError(StatusBadRequest, err.Error())
 			}
 			return err
 		}
 
-		return c.JSON(Response{Message: "directory updated", Data: dir})
+		return c.Status(StatusOk).
+			JSON(Response{Message: "directory updated", Data: dir})
 	}
 }
 
@@ -76,15 +84,16 @@ func DelDirHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 
-		if err := dataprovider2.Delete(id, ""); err != nil {
-			if err == dataprovider2.ErrPermission {
+		if err := dp.Delete(id, ""); err != nil {
+			if err == dp.ErrPermission {
 				return fiber.NewError(StatusForbidden, err.Error())
 			}
-			if err == dataprovider2.ErrNotExist {
+			if err == dp.ErrNotExist {
 				return fiber.NewError(StatusNotFound, err.Error())
 			}
 			return err
 		}
-		return c.JSON(Response{Message: "directory deleted"})
+		return c.Status(StatusOk).
+			JSON(Response{Message: "directory deleted"})
 	}
 }
