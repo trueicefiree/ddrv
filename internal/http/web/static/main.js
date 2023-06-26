@@ -108,13 +108,16 @@ app.controller('controller', ['$scope', 'FMService', '$interval', function ($sco
         window.open(url, '_blank');
     }
 
-    $scope.createFolder = function () {
-        FMService.createDir({parent: $scope.directory.id, name: $scope.newFolderName})
-            .then(() => {
-                document.getElementById('createFolderDialog').close()
-                $scope.load($scope.directory.id)
-                $scope.newFolderName = ''
-            })
+    $scope.createFolder = async function () {
+        try {
+            await FMService.createDir({parent: $scope.directory.id, name: $scope.newFolderName})
+            document.getElementById('createFolderDialog').close()
+            $scope.load($scope.directory.id)
+            $scope.newFolderName = ''
+            $scope.createFolderErrorMessage = ''
+        }catch (err) {
+            $scope.$apply(() => $scope.createFolderErrorMessage = err.data.message)
+        }
     }
 
     $scope.progressbars = [];
@@ -141,6 +144,8 @@ app.controller('controller', ['$scope', 'FMService', '$interval', function ($sco
                 if (progressBarIndex !== -1) {
                     $scope.progressbars.splice(progressBarIndex, 1);
                 }
+            }).catch(err => {
+                $scope.progressCallback(file.name, `failed`)
             });
         });
     }
@@ -153,17 +158,23 @@ app.controller('controller', ['$scope', 'FMService', '$interval', function ($sco
     }
 
     $scope.rename = async function () {
-        const resource = $scope.directory.files.find(f => f.selected === true)
-        if (resource) {
-            if (resource.dir) {
-                const directory = {name: $scope.newName, parent: resource.parent}
-                await FMService.updateDir(resource.id, directory)
-            } else {
-                const file = {name:$scope.newName, parent: resource.parent}
-                await FMService.updateFile($scope.directory.id, resource.id, file)
+        try {
+            const resource = $scope.directory.files.find(f => f.selected === true)
+            if (resource) {
+                if (resource.dir) {
+                    const directory = {name: $scope.newName, parent: resource.parent}
+                    await FMService.updateDir(resource.id, directory)
+                } else {
+                    const file = {name:$scope.newName, parent: resource.parent}
+                    await FMService.updateFile($scope.directory.id, resource.id, file)
+                }
+                $scope.load($scope.directory.id)
+                document.getElementById("renameDialog").close()
             }
-            $scope.load($scope.directory.id)
-            document.getElementById("renameDialog").close()
+            $scope.newName = ''
+            $scope.renameErrorMessage = ''
+        }catch (err) {
+            $scope.$apply(() => $scope.renameErrorMessage = err.data.message)
         }
     }
 
@@ -248,8 +259,8 @@ app.service('FMService', ['$http', function ($http) {
                 uploadEventHandlers: {
                     progress: function (e) {
                         if (e.lengthComputable) {
-                            let progress = e.loaded / e.total * 100;
-                            progressCallback(file.name, progress);
+                            let progress = (e.loaded / e.total * 100).toFixed(2);
+                            progressCallback(file.name, `${progress} %`);
                         }
                     }
                 }

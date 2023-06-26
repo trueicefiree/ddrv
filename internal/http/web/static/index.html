@@ -45,11 +45,11 @@
     <form ng-submit="createFolder()" style="display: flex; align-items: center">
         <label for="createFolderInput">Folder name:&nbsp;&nbsp;</label>
         <input type="text" id="createFolderInput" ng-model="newFolderName"><br>
-        <button type="submit" style="margin: 10px">
+        <button type="submit" style="margin: 10px" ng-disabled="!newFolderName">
             Create
         </button>
     </form>
-    <span ng-show="invalidName"></span>
+    <span>{{createFolderErrorMessage}}</span>
 </dialog>
 
 <dialog id="renameDialog">
@@ -60,7 +60,7 @@
             Rename
         </button>
     </form>
-    <span ng-show="invalidName"></span>
+    <span>{{renameErrorMessage}}</span>
 </dialog>
 
 <div ng-show="!appCrashed">
@@ -110,7 +110,7 @@
                 </td>
                 <td ng-click="file.dir ? load(file.id) : open(file)" class="name-td"> {{file.name}}</td>
                 <td style="text-align: right" class="size-td">{{file.size}}</td>
-                <td style="text-align: right" class="date-td">{{file.mtime | date:'dd/M/yyyy h:mma'}}</td>
+                <td style="text-align: right" class="date-td">{{file.mtime | date:'MM/dd/yyyy hh:mma'}}</td>
             </tr>
             </tbody>
         </table>
@@ -118,7 +118,7 @@
 
     <div ng-repeat="progress in progressbars" class="progress-bar progress-bar-show-percent">
         <div class="progress-bar-filled" ng-style="{'width': progress.value + '%'}"
-             data-filled="Uploading {{progress.name}} {{progress.value}}%"></div>
+             data-filled="Uploading {{progress.name}} {{progress.value}}"></div>
     </div>
 
 </div>
