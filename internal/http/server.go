@@ -1,14 +1,11 @@
 package http
 
 import (
-	"embed"
 	"errors"
 	"log"
-	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/template/html/v2"
 
 	"github.com/forscht/ddrv/internal/http/api"
 	"github.com/forscht/ddrv/internal/http/web"
@@ -34,17 +31,12 @@ func New(mgr *ddrv.Manager) *fiber.App {
 	return app
 }
 
-//go:embed web/views/*
-var views embed.FS
-
 func config() fiber.Config {
-	engine := html.NewFileSystem(http.FS(views), ".html")
 	//engine := html.New("./http/web/views", ".html")
 	return fiber.Config{
 		DisablePreParseMultipartForm: true, // https://github.com/gofiber/fiber/issues/1838
 		StreamRequestBody:            true,
 		DisableStartupMessage:        true,
-		Views:                        engine,
 		ErrorHandler: func(ctx *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError // Status code defaults to 500
 			if ctx.BaseURL() == "http://" || ctx.BaseURL() == "https://" {
