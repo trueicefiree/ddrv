@@ -1,6 +1,10 @@
 package api
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+
+	dp "github.com/forscht/ddrv/internal/dataprovider"
+)
 
 const (
 	StatusOk                  = fiber.StatusOK
@@ -27,4 +31,9 @@ type Response struct {
 type User struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type Directory struct {
+	*dp.File
+	Files []*dp.File `json:"files"`
 }

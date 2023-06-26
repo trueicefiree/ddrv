@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/forscht/ddrv/internal/config"
 	"github.com/forscht/ddrv/internal/dataprovider"
 	"github.com/forscht/ddrv/pkg/ddrv"
 )
@@ -137,9 +138,15 @@ func (f *File) Write(p []byte) (int, error) {
 				return 0, err
 			}
 		}
-		f.streamWrite = f.mgr.NewWriter(func(chunk *ddrv.Attachment) {
-			f.chunks = append(f.chunks, chunk)
-		})
+		if config.AsyncWrite() {
+			f.streamWrite = f.mgr.NewNWriter(func(chunk *ddrv.Attachment) {
+				f.chunks = append(f.chunks, chunk)
+			})
+		} else {
+			f.streamWrite = f.mgr.NewWriter(func(chunk *ddrv.Attachment) {
+				f.chunks = append(f.chunks, chunk)
+			})
+		}
 	}
 	n, err := f.streamWrite.Write(p)
 

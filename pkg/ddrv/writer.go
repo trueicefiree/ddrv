@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// Writer is a custom writer that implements io.WriteCloser.
+// Writer implements io.WriteCloser.
 // It streams data in chunks to Discord server channels using webhook
 type Writer struct {
 	mgr       *Manager // Manager where Writer writes data
@@ -20,14 +20,14 @@ type Writer struct {
 
 // NewWriter creates a new Writer with the given chunk Size and manager.
 func NewWriter(onChunk func(chunk *Attachment), chunkSize int, mgr *Manager) io.WriteCloser {
-	sw := &Writer{
+	w := &Writer{
 		mgr:       mgr,
 		errCh:     make(chan error, 0),
 		chunkCh:   make(chan *Attachment, 0),
 		onChunk:   onChunk,
 		chunkSize: chunkSize,
 	}
-	return sw
+	return w
 }
 
 // Write implements the Write method of io.Writer. It writes p to the Writer.

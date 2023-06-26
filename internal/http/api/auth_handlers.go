@@ -78,3 +78,26 @@ func AuthHandler() fiber.Handler {
 		return c.Next()
 	}
 }
+
+func AuthConfigHandler() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		login := true
+		if config.Username() == "" || config.Password() == "" {
+			login = false
+		}
+		response := Response{
+			Message: "config retrieved",
+			Data: map[string]interface{}{
+				"login":     login,
+				"anonymous": config.HTTPGuest(),
+			},
+		}
+		return c.Status(StatusOk).JSON(response)
+	}
+}
+
+func CheckTokenHandler() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return c.Status(StatusOk).JSON(Response{Message: "token ok"})
+	}
+}

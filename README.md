@@ -25,8 +25,7 @@ It uses an FTP frontend as well as HTTP and WebDAV, allowing users to upload any
     ```
 - An FTP server will launch on ftp://localhost:2525.
 - An HTTP server will launch on http://localhost:2526
-- An WebDav server will launch on dav://localhost:2527
-
+- An WebDav server will launch on webdav://localhost:2527
 
 ## Build from Source
 - Ensure that you have [Go](https://go.dev/doc/install) (version 1.20 or newer) installed on your system.

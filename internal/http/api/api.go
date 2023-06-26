@@ -12,20 +12,21 @@ var validate = validator.New()
 
 func Load(app *fiber.App, mgr *ddrv.Manager) {
 
-	// Create api API group
+	// create api API group
 	api := app.Group("/api")
 
-	// Public route for public login
+	// public route for public login
 	api.Post("/user/login", LoginHandler())
+	// returns necessary ddrv auth config
+	api.Get("/config", AuthConfigHandler())
 
-	// Only setup auth middleware
-	// if username and password are not blank
+	// setup auth middleware if username and password are not blank
 	if config.Username() != "" || config.Password() != "" {
 		api.Use(AuthHandler())
 	}
 
-	// Returns necessary ddrv config
-	api.Post("/config", ConfigHandler())
+	// verify JWT token (required on a page load)
+	api.Get("/check_token", CheckTokenHandler())
 
 	// Load directory middlewares
 	api.Post("/directories/", CreateDirHandler())
@@ -42,5 +43,5 @@ func Load(app *fiber.App, mgr *ddrv.Manager) {
 	// Just like discord, we will not authorize file endpoints
 	// so that it can work with download managers or media players
 	app.Get("/files/:id", DownloadFileHandler(mgr))
-
+	app.Get("/files/:id/:fname", DownloadFileHandler(mgr))
 }
