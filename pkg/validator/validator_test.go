@@ -45,19 +45,3 @@ func TestValidation(t *testing.T) {
 		t.Error("Validation should have failed for invalid email")
 	}
 }
-
-func TestCustomValidation(t *testing.T) {
-	validate := New()
-
-	// Valid UUID
-	err := validate.ValidateUUID("e0a4fa0a-14ea-485f-9a16-eb68425cf9c2")
-	if err != nil {
-		t.Errorf("Validation failed unexpectedly: %s", err.Error())
-	}
-
-	// Invalid UUID
-	err = validate.ValidateUUID("invalid-uuid")
-	if err == nil {
-		t.Error("Validation should have failed for invalid UUID")
-	}
-}

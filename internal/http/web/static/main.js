@@ -260,7 +260,7 @@ app.service('FMService', ['$http', function ($http) {
                     progress: function (e) {
                         if (e.lengthComputable) {
                             let progress = (e.loaded / e.total * 100).toFixed(2);
-                            progressCallback(file.name, `${progress} %`);
+                            progressCallback(file.name, progress);
                         }
                     }
                 }
