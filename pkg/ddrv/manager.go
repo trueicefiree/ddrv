@@ -85,6 +85,7 @@ func (mgr *Manager) NewReader(chunks []Attachment, pos int64) (io.ReadCloser, er
 // read fetches a range of data from the specified URL.
 // The range is specified by the start and end positions.
 func (mgr *Manager) read(url string, start, end int) (io.ReadCloser, error) {
+	fmt.Println("reading", start, end)
 	req, err := http.NewRequestWithContext(mgr.traceCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

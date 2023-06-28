@@ -12,6 +12,7 @@ import (
 	dp "github.com/forscht/ddrv/internal/dataprovider"
 	"github.com/forscht/ddrv/pkg/ddrv"
 	"github.com/forscht/ddrv/pkg/httprange"
+	"github.com/forscht/ddrv/pkg/lreader"
 	"github.com/forscht/ddrv/pkg/ns"
 )
 
@@ -174,8 +175,7 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
 			}
 			c.Set(fiber.HeaderContentType, mimeType)
 		}
-		c.Set(fiber.HeaderAcceptRanges, "bytes")
-		
+
 		nodes, err := dp.GetFileNodes(id)
 		if err != nil {
 			return err
@@ -192,14 +192,16 @@ func DownloadFileHandler(mgr *ddrv.Manager) fiber.Handler {
 			if err != nil {
 				return fiber.NewError(StatusRangeNotSatisfiable, err.Error())
 			}
+
 			c.Response().Header.Set("Content-Range", r.Header)
 
 			dreader, err := mgr.NewReader(chunks, r.Start)
 			if err != nil {
 				return err
 			}
-			c.Status(StatusPartialContent).Response().SetBodyStream(dreader, int(r.Length))
+			c.Status(StatusPartialContent).Response().SetBodyStream(lreader.New(dreader, int(r.Length)), int(r.Length))
 		} else {
+			c.Set(fiber.HeaderAcceptRanges, "bytes")
 			dreader, err := mgr.NewReader(chunks, 0)
 			if err != nil {
 				return err
