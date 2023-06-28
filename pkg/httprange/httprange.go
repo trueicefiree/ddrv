@@ -49,14 +49,14 @@ func Parse(rangeHeader string, size int64) (*Range, error) {
 			return nil, ErrInvalid
 		}
 		start = size - end
-		end = size
+		end = size - 1
 	} else if strings.HasSuffix(parts[1], "-") {
 		// The start- form "n-"
 		_, err := fmt.Sscanf(parts[1], "%d-", &start)
 		if err != nil {
 			return nil, ErrInvalid
 		}
-		end = size
+		end = size - 1
 	} else {
 		// "n-m" form
 		_, err := fmt.Sscanf(parts[1], "%d-%d", &start, &end)

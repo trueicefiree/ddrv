@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseRangeHeader(t *testing.T) {
-	size := int64(10000)
+	size := int64(4707476)
 
 	tests := []struct {
 		name          string
@@ -28,7 +28,7 @@ func TestParseRangeHeader(t *testing.T) {
 			name:          "Range with start and end",
 			headers:       http.Header{"Range": []string{"bytes=100-500"}},
 			start:         100,
-			contentRange:  "bytes 100-500/10000",
+			contentRange:  "bytes 100-500/4707476",
 			contentLength: 401,
 			err:           false,
 		},
@@ -36,16 +36,24 @@ func TestParseRangeHeader(t *testing.T) {
 			name:          "Range with start only",
 			headers:       http.Header{"Range": []string{"bytes=100-"}},
 			start:         100,
-			contentRange:  "bytes 100-10000/10000",
-			contentLength: 9901,
+			contentRange:  "bytes 100-4707475/4707476",
+			contentLength: 4707376,
+			err:           false,
+		},
+		{
+			name:          "Range with start only",
+			headers:       http.Header{"Range": []string{"bytes=0-"}},
+			start:         0,
+			contentRange:  "bytes 0-4707475/4707476",
+			contentLength: 4707476,
 			err:           false,
 		},
 		{
 			name:          "Range with end only",
 			headers:       http.Header{"Range": []string{"bytes=-500"}},
 			start:         size - 500,
-			contentRange:  "bytes 9500-10000/10000",
-			contentLength: 501,
+			contentRange:  "bytes 4706976-4707475/4707476",
+			contentLength: 500,
 			err:           false,
 		},
 	}
