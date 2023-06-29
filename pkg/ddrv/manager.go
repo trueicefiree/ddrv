@@ -22,6 +22,7 @@ var ErrInvalidWebhookURL = errors.New("invalid webhook URL")
 
 // Attachment represents a Discord attachment URL and Size
 type Attachment struct {
+	ID    string `json:"id"`   // ID snowflake id of attachment
 	URL   string `json:"url"`  // URL where the data is stored
 	Size  int    `json:"size"` // Size of the data
 	Start int64  // Start position of the data in the overall data sequence

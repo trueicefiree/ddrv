@@ -233,5 +233,5 @@ func (f *File) openReadStream(startAt int64) error {
 }
 
 func convertToNode(chunk *ddrv.Attachment) *dataprovider.Node {
-	return &dataprovider.Node{URL: chunk.URL, Size: chunk.Size}
+	return &dataprovider.Node{ID: chunk.ID, URL: chunk.URL, Size: chunk.Size}
 }
