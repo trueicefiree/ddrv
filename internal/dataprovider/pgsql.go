@@ -2,6 +2,8 @@ package dataprovider
 
 import (
 	"database/sql"
+	"log"
+	"strconv"
 	"time"
 
 	"github.com/lib/pq"
@@ -156,7 +158,7 @@ func (pgp *PGProvider) delete(id, parent string) error {
 
 func (pgp *PGProvider) getFileNodes(id string) ([]*Node, error) {
 	nodes := make([]*Node, 0)
-	rows, err := pgp.db.Query("SELECT url, size FROM node where file=$1", id)
+	rows, err := pgp.db.Query("SELECT url, size FROM node where file=$1 ORDER BY id ASC", id)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +185,7 @@ func (pgp *PGProvider) createFileNodes(fid string, nodes []*Node) error {
 	defer tx.Rollback()
 
 	// Prepare a statement within the transaction
-	stmt, err := tx.Prepare(`INSERT INTO node (file, url, size) VALUES ($1, $2, $3)`)
+	stmt, err := tx.Prepare(`INSERT INTO node (id, file, url, size) VALUES ($1, $2, $3, $4)`)
 	if err != nil {
 		return err
 	}
@@ -191,7 +193,7 @@ func (pgp *PGProvider) createFileNodes(fid string, nodes []*Node) error {
 
 	// Insert each node
 	for _, node := range nodes {
-		if _, err := stmt.Exec(fid, node.URL, node.Size); err != nil {
+		if _, err := stmt.Exec(mustConvInt64(node.ID), fid, node.URL, node.Size); err != nil {
 			return err
 		}
 	}
@@ -297,4 +299,12 @@ func pqErrToOs(err error) error {
 		}
 	}
 	return err
+}
+
+func mustConvInt64(str string) int64 {
+	i64, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		log.Fatalf("can not convert nodeId to int64 : %s", err.Error())
+	}
+	return i64
 }
