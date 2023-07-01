@@ -3,7 +3,7 @@ package dataprovider
 import (
 	"database/sql"
 	"log"
-	"os"
+	"math/rand"
 	"time"
 
 	"github.com/bwmarrin/snowflake"
@@ -23,7 +23,7 @@ type PGProvider struct {
 func NewPGProvider(dbURL string) Provider {
 	// Create database connection
 	dbConn := pgsql.New(dbURL, false)
-	sg, err := snowflake.NewNode(int64(os.Getpid()))
+	sg, err := snowflake.NewNode(int64(rand.Intn(1023)))
 	if err != nil {
 		log.Fatalf("failed to create snowflake node %v", err)
 	}
