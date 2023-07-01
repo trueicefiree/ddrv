@@ -3,9 +3,10 @@ package dataprovider
 import (
 	"database/sql"
 	"log"
-	"strconv"
+	"math/rand"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/lib/pq"
 
 	"github.com/forscht/ddrv/internal/dataprovider/db/pgsql"
@@ -16,12 +17,18 @@ const RootDirId = "11111111-1111-1111-1111-111111111111"
 
 type PGProvider struct {
 	db *sql.DB
+	sg *snowflake.Node
 }
 
 func NewPGProvider(dbURL string) Provider {
 	// Create database connection
 	dbConn := pgsql.New(dbURL, false)
-	return &PGProvider{db: dbConn}
+	sg, err := snowflake.NewNode(int64(rand.Intn(1023)))
+	if err != nil {
+		log.Fatalf("failed to create snowflake node %v", err)
+	}
+
+	return &PGProvider{dbConn, sg}
 }
 
 func (pgp *PGProvider) get(id, parent string) (*File, error) {
@@ -193,7 +200,8 @@ func (pgp *PGProvider) createFileNodes(fid string, nodes []*Node) error {
 
 	// Insert each node
 	for _, node := range nodes {
-		if _, err := stmt.Exec(mustConvInt64(node.ID), fid, node.URL, node.Size); err != nil {
+		id := pgp.sg.Generate()
+		if _, err := stmt.Exec(id, fid, node.URL, node.Size); err != nil {
 			return err
 		}
 	}
@@ -299,12 +307,4 @@ func pqErrToOs(err error) error {
 		}
 	}
 	return err
-}
-
-func mustConvInt64(str string) int64 {
-	i64, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		log.Fatalf("can not convert nodeId to int64 : %s", err.Error())
-	}
-	return i64
 }

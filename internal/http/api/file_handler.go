@@ -76,7 +76,7 @@ func CreateFileHandler(mgr *ddrv.Manager) fiber.Handler {
 				var dwriter io.WriteCloser
 				onChunk := func(a *ddrv.Attachment) {
 					file.Size += int64(a.Size)
-					nodes = append(nodes, &dp.Node{ID: a.ID, URL: a.URL, Size: a.Size})
+					nodes = append(nodes, &dp.Node{URL: a.URL, Size: a.Size})
 				}
 
 				if config.AsyncWrite() {
