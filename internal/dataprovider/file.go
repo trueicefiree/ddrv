@@ -16,7 +16,7 @@ type File struct {
 }
 
 type Node struct {
-	ID   string
+	ID   int64 // snowflake id
 	URL  string
 	Size int
 	Iv   string
