@@ -1,6 +1,2 @@
-git clone https://github.com/trueicefiree/ddrv/
-cd ddrv
-go build -race -o ddrv ./cmd/ddrv
-# If you're on linux and make is installed
-# make build
+make build
 ./ddrv
