@@ -1,0 +1,2 @@
+go build -race -o ddrv ./cmd/ddrv
+./ddrv --http-guest
